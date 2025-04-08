@@ -1,0 +1,78 @@
+﻿Sample_ID,Sample ,Tissue,Time,Arm
+IF05_B1,S1,PLASMA,B0,Non-Intermittent
+IF05_B2_P2,S2,PLASMA,D1,Non-Intermittent
+IF05_B4_P2,S3,PLASMA,D5,Non-Intermittent
+IF05_B5,S4,PLASMA,F3,Non-Intermittent
+IF05_B6,S5,PLASMA,F6,Non-Intermittent
+IF12_B1,S6,PLASMA,B0,Intermittent Fasting
+IF12_B2_P2,S7,PLASMA,D1,Intermittent Fasting
+IF12_B4_P2,S8,PLASMA,D5,Intermittent Fasting
+IF12_B5,S9,PLASMA,F3,Intermittent Fasting
+IF12_B6,S10,PLASMA,F6,Intermittent Fasting
+IF01_B1,S11,PLASMA,B0,Non-Intermittent
+IF01_B2_P2,S12,PLASMA,D1,Non-Intermittent
+IF01_B4_P4,S13,PLASMA,D5,Non-Intermittent
+IF01_B5,S14,PLASMA,F3,Non-Intermittent
+IF01_B6,S15,PLASMA,F9,Non-Intermittent
+IF01_B7,S16,PLASMA,F12,Non-Intermittent
+IF02_B2_P2,S17,PLASMA,D1,Intermittent Fasting
+IF02_B4_P2,S18,PLASMA,D5,Intermittent Fasting
+IF02_B5,S19,PLASMA,F3,Intermittent Fasting
+IF02_B6,S20,PLASMA,F9,Intermittent Fasting
+IF02_B7,S21,PLASMA,F12,Intermittent Fasting
+IF05_B1_2,S22,PLASMA,B0,Non-Intermittent
+IF05_B2_P2_2,S23,PLASMA,D1,Non-Intermittent
+IF05_B4_P2_2,S24,PLASMA,D5,Non-Intermittent
+IF05_B5_2,S25,PLASMA,F3,Non-Intermittent
+IF05_B7,S26,PLASMA,F12,Non-Intermittent
+IF12_B1_2,S27,PLASMA,B0,Intermittent Fasting
+IF12_B2_P2_2,S28,PLASMA,D1,Intermittent Fasting
+IF12_B4_P2_2,S29,PLASMA,D5,Intermittent Fasting
+IF12_B5_2,S30,PLASMA,F3,Intermittent Fasting
+IF12_B6_2,S31,PLASMA,F6,Intermittent Fasting
+IF13_B1,S32,PLASMA,B0,Intermittent Fasting
+IF13_B2_P2,S33,PLASMA,D1,Intermittent Fasting
+IF13_B4_P2,S34,PLASMA,D5,Intermittent Fasting
+IF13_B5,S35,PLASMA,F3,Intermittent Fasting
+IF13_B6,S36,PLASMA,F6,Intermittent Fasting
+IF16_B1,S37,PLASMA,B0,Non-Intermittent
+IF16_B2_P2,S38,PLASMA,D1,Non-Intermittent
+IF16_B4_P2,S39,PLASMA,D5,Non-Intermittent
+IF16_B5,S40,PLASMA,F3,Non-Intermittent
+IF16_B6,S41,PLASMA,F6,Non-Intermittent
+IF16_B8,S42,PLASMA,F12,Non-Intermittent
+IF18_B1,S43,PLASMA,B0,Intermittent Fasting
+IF18_B2_P2,S44,PLASMA,D1,Intermittent Fasting
+IF18_B4_P2,S45,PLASMA,D5,Intermittent Fasting
+IF18_B5,S46,PLASMA,F3,Intermittent Fasting
+IF18_B6,S47,PLASMA,F6,Intermittent Fasting
+IF19_B1,S48,PLASMA,B0,Intermittent Fasting
+IF19_B2_P2,S49,PLASMA,D1,Intermittent Fasting
+IF19_B4_P2,S50,PLASMA,D5,Intermittent Fasting
+IF19_B5,S51,PLASMA,F3,Intermittent Fasting
+IF19_B6,S52,PLASMA,F6,Intermittent Fasting
+IF20_B1,S53,PLASMA,B0,Intermittent Fasting
+IF20_B2_P2,S54,PLASMA,D1,Intermittent Fasting
+IF20_B4_P2,S55,PLASMA,D5,Intermittent Fasting
+IF20_B5,S56,PLASMA,F3,Intermittent Fasting
+IF20_B6,S57,PLASMA,F6,Intermittent Fasting
+MB01_TP01_P1,S58,PLASMA,D1A,Non-Intermittent
+MB01_TP01_P2,S59,PLASMA,D1B,Non-Intermittent
+MB01_TP03,S60,PLASMA,D5,Non-Intermittent
+MB01_TP04,S61,PLASMA,F3,Non-Intermittent
+MB01_TP05,S62,PLASMA,F9,Non-Intermittent
+MB01_TP06,S63,PLASMA,F12,Non-Intermittent
+MB02_TP01_P1,S64,PLASMA,B0,Non-Intermittent
+MB02_TP01_P2,S65,PLASMA,D1,Non-Intermittent
+MB02_TP03_P2,S66,PLASMA,D5,Non-Intermittent
+MB02_TP04,S67,PLASMA,F3,Non-Intermittent
+MB02_TP05,S68,PLASMA,F9,Non-Intermittent
+MB02_B6,S69,PLASMA,F12,Non-Intermittent
+MB08_TP01_P1,S70,PLASMA,B0,Non-Intermittent
+MB08_TP01_P2,S71,PLASMA,D1,Non-Intermittent
+MB08_TP03_P2,S72,PLASMA,D5,Non-Intermittent
+MB08_TP04_P2,S73,PLASMA,D7,Non-Intermittent
+MB08_TP05,S74,PLASMA,F3,Non-Intermittent
+MB08_TP06,S75,PLASMA,F6,Non-Intermittent
+IF02_B2_P1,S76,PLASMA,B0,Intermittent Fasting
+IF05_B6_2,S77,PLASMA,F6,Non-Intermittent

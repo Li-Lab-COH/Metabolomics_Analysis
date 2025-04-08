@@ -1,0 +1,357 @@
+---
+title: "pathway analysis"
+output: html_document
+date: "2025-01-06"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+```{r}
+
+library(omu)
+library(tidyverse)
+
+count_df <- read_metabo(filepath = "/Users/abnerportillo/Downloads/new_data.csv") #Started w/ 9671 observations and I am using company data sheet that has updated class
+
+meta_data_df <- read.csv("/Users/abnerportillo/Downloads/meta_data_human.csv")
+
+count_df <- assign_hierarchy(count_data = count_df, keep_unknowns = TRUE, identifier = "KEGG")
+
+
+ count_df[count_df == "NA"] <- NA
+
+```
+
+```{r}
+#making new columns for comparisons
+
+meta_data_df$Condition<-factor(paste(meta_data_df$Arm, meta_data_df$Time))
+```
+
+#Baseline vs Week 5 Non-Intermittent fasting 
+```{r}
+NIF_b_w5 <- omu_summary(
+
+  count_data = count_df,
+  metadata = meta_data_df,
+  numerator = "Non-Intermittent B0",
+  denominator = "Non-Intermittent D5",
+  response_variable = "Metabolite",
+  Factor = "Condition",
+  log_transform = TRUE,
+  p_adjust = "BH",
+  test_type = "mwu"
+)
+
+### See what metabolites are significant 
+
+NIF_b_w5$diffexpressed <- "NO"
+# if Foldchange >1 and pvalue < 0.05, set as "UP"
+NIF_b_w5$diffexpressed[NIF_b_w5$Fold_Change > 1.0 & NIF_b_w5$pval < 0.05] <- "UP"
+# if Foldchange < -1 and pvalue < 0.05, set as "DOWN"
+NIF_b_w5$diffexpressed[NIF_b_w5$Fold_Change < 1.0 & NIF_b_w5$pval < 0.05] <- "DOWN"
+
+#How many significant metabolites? 
+NIF_b_w5 %>% count(diffexpressed)
+
+
+
+#Converting class to factor
+NIF_b_w5$Class.I <- as.factor(NIF_b_w5$Class.I)
+
+summary(NIF_b_w5$Class.I)## Finding what other classes to subset by
+
+#What are the metabolites that are significant by Class 
+
+ NIF_b_w5_class<- NIF_b_w5[c("Metabolite", "KEGG","Class.I", "diffexpressed", "pval","Fold_Change", "kegg_map")]
+ NIF_b_w5_class <- NIF_b_w5_class[which(NIF_b_w5_class[,"pval"] <= 0.05),]
+ 
+ summary(NIF_b_w5_class)
+ 
+```
+
+# NIF baseline vs NIF 3 month
+```{r}
+NIF_b_3m <- omu_summary(
+
+  count_data = count_df,
+  metadata = meta_data_df,
+  numerator = "Non-Intermittent B0",
+  denominator = "Non-Intermittent F3",
+  response_variable = "Metabolite",
+  Factor = "Condition",
+  log_transform = TRUE,
+  p_adjust = "BH",
+  test_type = "mwu"
+  
+)
+
+### See what metabolites are significant 
+
+NIF_b_3m$diffexpressed <- "NO"
+# if Foldchange >1 and pvalue < 0.05, set as "UP"
+NIF_b_3m$diffexpressed[NIF_b_3m$Fold_Change > 1.0 & NIF_b_3m$pval < 0.05] <- "UP"
+# if Foldchange < -1 and pvalue < 0.05, set as "DOWN"
+NIF_b_3m$diffexpressed[NIF_b_3m$Fold_Change < 1.0 & NIF_b_3m$pval < 0.05] <- "DOWN"
+
+#How many significant metabolites? 
+NIF_b_3m %>% count(diffexpressed)
+
+#Converting class to factor
+NIF_b_3m$Class.I <- as.factor(NIF_b_3m$Class.I)
+
+summary(NIF_b_w5$Class.I)## Finding what other classes to subset by
+
+#What are the metabolites that are significant by Class 
+
+ NIF_b_3m_class<- NIF_b_3m[c("Metabolite", "KEGG","Class.I", "diffexpressed", "pval","Fold_Change", "kegg_map")]
+NIF_b_3m_class <- NIF_b_3m_class[which(NIF_b_3m_class[,"pval"] <= 0.05),]
+ 
+ summary(NIF_b_3m_class)
+```
+
+# IF baseline vs Week 5
+```{r}
+IF_b_w5 <- omu_summary(
+
+  count_data = count_df,
+  metadata = meta_data_df,
+  numerator = "Intermittent Fasting B0",
+  denominator = "Intermittent Fasting D5",
+  response_variable = "Metabolite",
+  Factor = "Condition",
+  log_transform = TRUE,
+  p_adjust = "BH",
+  test_type = "mwu"
+  
+)
+
+### See what metabolites are significant 
+
+IF_b_w5$diffexpressed <- "NO"
+# if Foldchange >1 and pvalue < 0.05, set as "UP"
+IF_b_w5$diffexpressed[IF_b_w5$Fold_Change > 1.0 & IF_b_w5$pval < 0.05] <- "UP"
+# if Foldchange < -1 and pvalue < 0.05, set as "DOWN"
+IF_b_w5$diffexpressed[IF_b_w5$Fold_Change < 1.0 & IF_b_w5$pval < 0.05] <- "DOWN"
+
+#How many significant metabolites? 
+IF_b_w5 %>% count(diffexpressed)
+
+#Converting class to factor
+IF_b_w5$Class.I <- as.factor(IF_b_w5$Class.I)
+
+summary(IF_b_w5$Class.I)## Finding what other classes to subset by
+
+#What are the metabolites that are significant by Class 
+
+IF_b_w5_class<- IF_b_w5[c("Metabolite", "KEGG","Class.I", "diffexpressed", "pval","Fold_Change", "kegg_map")]
+IF_b_w5_class <- IF_b_w5_class[which(IF_b_w5_class[,"pval"] <= 0.05),]
+ 
+summary(IF_b_w5_class)
+ 
+```
+# IF baseline vs month 3
+
+```{r}
+IF_b_3m <- omu_summary(
+
+  count_data = count_df,
+  metadata = meta_data_df,
+  numerator = "Intermittent Fasting B0",
+  denominator = "Intermittent Fasting F3",
+  response_variable = "Metabolite",
+  Factor = "Condition",
+  log_transform = TRUE,
+  p_adjust = "BH",
+  test_type = "mwu"
+  
+)
+
+### See what metabolites are significant 
+
+IF_b_3m$diffexpressed <- "NO"
+# if Foldchange >1 and pvalue < 0.05, set as "UP"
+IF_b_3m$diffexpressed[IF_b_3m$Fold_Change > 1.0 & IF_b_3m$pval < 0.05] <- "UP"
+# if Foldchange < -1 and pvalue < 0.05, set as "DOWN"
+IF_b_3m$diffexpressed[IF_b_3m$Fold_Change < 1.0 & IF_b_3m$pval < 0.05] <- "DOWN"
+
+#How many significant metabolites? 
+IF_b_3m %>% count(diffexpressed)
+
+#Converting class to factor
+IF_b_3m$Class.I <- as.factor(IF_b_3m$Class.I)
+
+summary(IF_b_3m$Class.I)## Finding what other classes to subset by
+
+#What are the metabolites that are significant by Class 
+
+IF_b_3m_class<- IF_b_3m[c("Metabolite", "KEGG","Class.I", "diffexpressed", "pval","Fold_Change", "kegg_map")]
+IF_b_3m_class <- IF_b_3m_class[which(IF_b_3m_class[,"pval"] <= 0.05),]
+ 
+summary(IF_b_3m_class)
+
+```
+
+
+
+# Looking at Fatty acids 
+```{r}
+NIF_b_w5_FA<- subset(NIF_b_w5, Class.I=="FA")
+NIF_b_w5_FA <- NIF_b_w5_FA[which(NIF_b_w5_FA[,"pval"] <= 0.05),]
+
+NIF_b_w5_FA %>% count(diffexpressed)
+
+
+IF_b_w5_FA<- subset(IF_b_w5, Class.I=="FA")
+IF_b_w5_FA <- IF_b_w5_FA[which(IF_b_w5_FA[,"pval"] <= 0.05),]
+
+IF_b_w5_FA %>% count(diffexpressed)
+
+NIF_b_3m_FA<- subset(NIF_b_3m, Class.I=="FA")
+NIF_b_3m_FA <- NIF_b_3m_FA[which(NIF_b_3m_FA[,"pval"] <= 0.05),]
+
+NIF_b_3m_FA %>% count(diffexpressed)
+
+
+IF_b_3m_FA<- subset(IF_b_3m, Class.I=="FA")
+IF_b_3m_FA <- IF_b_3m_FA[which(IF_b_3m_FA[,"pval"] <= 0.05),]
+
+IF_b_3m_FA %>% count(diffexpressed)
+
+```
+
+#Pathway analysis 
+```{r}
+#Installing Metaboanalyst
+metanr_packages <- function(){
+metr_pkgs <- c("impute", "pcaMethods", "globaltest", "GlobalAncova", "Rgraphviz", "preprocessCore", "genefilter", "sva", "limma", "KEGGgraph", "siggenes","BiocParallel", "MSnbase", "multtest", "RBGL", "edgeR", "fgsea", "devtools", "crmn")
+list_installed <- installed.packages()
+new_pkgs <- subset(metr_pkgs, !(metr_pkgs %in% list_installed[, "Package"]))
+if(length(new_pkgs)!=0){if (!requireNamespace("BiocManager", quietly = TRUE))
+        install.packages("BiocManager")
+        BiocManager::install(new_pkgs)
+        print(c(new_pkgs, " packages added..."))
+    }
+
+if((length(new_pkgs)<1)){a
+        print("No new packages added...")
+    }
+}
+
+
+metanr_packages()
+
+```
+
+```{r}
+install.packages("devtools")
+library(devtools)
+
+# Step 2: Install MetaboAnalystR without documentation
+devtools::install_github("xia-lab/MetaboAnalystR", build = TRUE, build_vignettes = FALSE)
+
+```
+
+```{r}
+install.packages("BiocManager")
+
+BiocManager::version()
+
+BiocManager::install("SSPA")
+
+library(SSPA)
+install.packages("SSPA")
+
+source("https://bioconductor.org/biocLite.R")
+biocLite("SSPA")
+```
+
+
+```{r}
+install.packages(c('Rcpp', 'RcppArmadillo'))
+
+
+```
+
+```{r}
+library(Rcpp)
+
+# Compile the C++ file
+
+Rcpp::sourceCpp('/Users/abnerportillo/helloworld.cpp')
+
+# Call the exported C++ function
+
+hello_world()
+
+```
+## Pathway analysis part2
+```{r}
+if (!require("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+
+BiocManager::install("rWikiPathways")
+```
+
+```{r}
+if(!"rWikiPathways" %in% installed.packages()){
+    if (!requireNamespace("BiocManager", quietly = TRUE))
+        install.packages("BiocManager")
+    BiocManager::install("rWikiPathways", update = FALSE)
+}
+library(rWikiPathways)
+
+
+```
+
+```{r}
+load.libs <- c(
+  "DOSE",
+  "GO.db",
+  "GSEABase",
+  "org.Hs.eg.db",
+  "clusterProfiler",
+  "dplyr",
+  "tidyr",
+  "ggplot2",
+  "stringr",
+  "RColorBrewer",
+  "rWikiPathways",
+  "RCy3")
+options(install.packages.check.source = "no")
+options(install.packages.compile.from.source = "never")
+if (!require("pacman")) install.packages("pacman"); library(pacman)
+p_load(load.libs, update = TRUE, character.only = TRUE)
+status <- sapply(load.libs,require,character.only = TRUE)
+if(all(status)){
+    print("SUCCESS: You have successfully installed and loaded all required libraries.")
+} else{
+    cat("ERROR: One or more libraries failed to install correctly. Check the following list for FALSE cases and try again...\n\n")
+    status
+}
+```
+
+
+

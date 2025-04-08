@@ -1,0 +1,893 @@
+---
+title: "Metabolomics_human_II"
+output: html_document
+date: "2024-12-03"
+editor_options: 
+  chunk_output_type: inline
+---
+
+
+
+# Library 
+```{r}
+library(omu)
+library(tidyverse)
+
+count_df <- read_metabo(filepath = "/Users/abnerportillo/Downloads/metabolomics_human.csv") #Started w/ 9671 observations
+
+meta_data_df <- read.csv("/Users/abnerportillo/Downloads/meta_data_human.csv")
+
+
+count_df <- assign_hierarchy(count_data = count_df, keep_unknowns = TRUE, identifier = "KEGG")
+
+sum(is.na(count_df$Class))
+
+count_df[is.na(count_df)] <- "Other"
+
+
+
+
+
+```
+
+#Data for PCA plot (dont run unless want to see PCA plot)
+```{r}
+
+count_df_log <- log(count_df[,3:79]) # transforming data 
+
+count_df_log <- cbind(count_df[,1:2], count_df_log) #combining data 
+
+
+
+
+#want to add class columns to count_df_log for later analysis
+count_df_log <- assign_hierarchy(count_data = count_df_log, keep_unknowns = TRUE, identifier = "KEGG")
+
+
+# Keep rows where all values in columns 3 to 79 are not zero
+count_df_log <- count_df_log[apply(count_df_log[, 3:79], 1, function(row) all(row != 0)), ]
+
+
+
+
+```
+
+#PCA plot
+```{r}
+PCA <- PCA_plot(count_data = count_df_log, metadata = meta_data_df, variable ="Arm",color = "Arm",response_variable = "Metabolite") +theme_bw() + theme(panel.grid = element_blank())
+
+PCA
+```
+
+# Important for the comparisons (In meta-data)
+```{r}
+#making new columns for comparisons
+
+meta_data_df$Condition<-factor(paste(meta_data_df$Arm, meta_data_df$Time))
+
+```
+
+# NIF baseline vs Week 5
+```{r}
+NIF_b_w5 <- omu_summary(
+
+  count_data = count_df,
+  metadata = meta_data_df,
+  numerator = "Non-Intermittent B0",
+  denominator = "Non-Intermittent D5",
+  response_variable = "Metabolite",
+  Factor = "Condition",
+  log_transform = TRUE,
+  p_adjust = "BH",
+  test_type = "mwu"
+)
+
+### See what metabolites are significant 
+
+NIF_b_w5$diffexpressed <- "NO"
+# if Foldchange >1 and pvalue < 0.05, set as "UP"
+NIF_b_w5$diffexpressed[NIF_b_w5$Fold_Change > 1.0 & NIF_b_w5$pval < 0.05] <- "UP"
+# if Foldchange < -1 and pvalue < 0.05, set as "DOWN"
+NIF_b_w5$diffexpressed[NIF_b_w5$Fold_Change < 1.0 & NIF_b_w5$pval < 0.05] <- "DOWN"
+
+#How many significant metabolites? 
+NIF_b_w5 %>% count(diffexpressed)
+
+summary(NIF_b_w5$Class)## Finding what other classes to subset by
+
+#What are the metabolites that are significant by Class 
+
+ NIF_b_w5_class<- NIF_b_w5[c("Metabolite", "KEGG","Class", "diffexpressed", "pval","Fold_Change")]
+ NIF_b_w5_class <- NIF_b_w5_class[which(NIF_b_w5_class[,"pval"] <= 0.05),]
+ 
+ summary(NIF_b_w5_class)
+ 
+```
+
+
+```{r}
+#Subsetting for lipids
+NIF_b_w5_lipids<- subset(NIF_b_w5, Class=="Lipids")
+NIF_b_w5_lipids <- NIF_b_w5_lipids[which(NIF_b_w5_lipids[,"pval"] <= 0.05),]
+
+NIF_b_w5_lipids %>% count(diffexpressed)
+
+
+# Phytochemical compounds, Carbohydrates, Nucleic acids, Peptides, Organic acids, Hormones and Transmitters, Antibiotics, Vitamins and Cofactors, Bioactive peptides
+
+# Subsetting for Carbohydrates 
+NIF_b_w5_carbs <- subset(NIF_b_w5, Class == "Carbohydrates")
+NIF_b_w5_carbs <- NIF_b_w5_carbs[which(NIF_b_w5_carbs[,"pval"] <= 0.05),]
+# None where significant
+
+#Subsetting for Phytochemical compounds
+NIF_b_w5_phy_chem <- subset(NIF_b_w5, Class == "Phytochemical compounds")
+NIF_b_w5_phy_chem <- NIF_b_w5_phy_chem[which(NIF_b_w5_phy_chem[,"pval"] <= 0.05),]
+NIF_b_w5_phy_chem  %>% count(diffexpressed)
+
+NIF_b_w5_n_acid <- subset(NIF_b_w5, Class == "Nucleic acids")
+NIF_b_w5_n_acid <-NIF_b_w5_n_acid[which(NIF_b_w5_n_acid[,"pval"] <= 0.05), ]
+
+NIF_b_w5_peptides <- subset(NIF_b_w5, Class == "Peptides")
+NIF_b_w5_peptides <- NIF_b_w5_peptides[which(NIF_b_w5_peptides[, "pval"] <= 0.05),]
+
+
+
+```
+
+# NIF baseline vs NIF 3 month
+```{r}
+NIF_b_3m <- omu_summary(
+
+  count_data = count_df,
+  metadata = meta_data_df,
+  numerator = "Non-Intermittent B0",
+  denominator = "Non-Intermittent F3",
+  response_variable = "Metabolite",
+  Factor = "Condition",
+  log_transform = TRUE,
+  p_adjust = "BH",
+  test_type = "mwu"
+  
+)
+
+### See what metabolites are significant 
+
+NIF_b_3m$diffexpressed <- "NO"
+# if Foldchange >1 and pvalue < 0.05, set as "UP"
+NIF_b_3m$diffexpressed[NIF_b_3m$Fold_Change > 1.0 & NIF_b_3m$pval < 0.05] <- "UP"
+# if Foldchange < -1 and pvalue < 0.05, set as "DOWN"
+NIF_b_3m$diffexpressed[NIF_b_3m$Fold_Change < 1.0 & NIF_b_3m$pval < 0.05] <- "DOWN"
+
+#How many significant metabolites? 
+NIF_b_3m %>% count(diffexpressed)
+
+summary(NIF_b_3m$Class)## Finding what other classes to subset by
+
+#What are the metabolites that are significant by Class 
+
+ NIF_b_3m_class<- NIF_b_3m[c("Metabolite", "KEGG","Class", "diffexpressed", "pval","Fold_Change")]
+ NIF_b_3m_class <- NIF_b_3m_class[which(NIF_b_3m_class[,"pval"] <= 0.05),]
+ 
+ 
+### see what class is affected
+ summary(NIF_b_3m_class)
+
+```
+# IF baseline vs Week 5
+```{r}
+IF_b_w5 <- omu_summary(
+
+  count_data = count_df,
+  metadata = meta_data_df,
+  numerator = "Intermittent Fasting B0",
+  denominator = "Intermittent Fasting D5",
+  response_variable = "Metabolite",
+  Factor = "Condition",
+  log_transform = TRUE,
+  p_adjust = "BH",
+  test_type = "mwu"
+  
+)
+
+### See what metabolites are significant 
+
+IF_b_w5$diffexpressed <- "NO"
+# if Foldchange >1 and pvalue < 0.05, set as "UP"
+IF_b_w5$diffexpressed[IF_b_w5$Fold_Change > 1.0 & IF_b_w5$pval < 0.05] <- "UP"
+# if Foldchange < -1 and pvalue < 0.05, set as "DOWN"
+IF_b_w5$diffexpressed[IF_b_w5$Fold_Change < 1.0 & IF_b_w5$pval < 0.05] <- "DOWN"
+
+#How many significant metabolites? 
+IF_b_w5 %>% count(diffexpressed)
+
+summary(IF_b_w5$Class)## Finding what other classes to subset by
+
+#What are the metabolites that are significant by Class 
+
+IF_b_w5_class<-  IF_b_w5[c("Metabolite", "KEGG","Class", "diffexpressed", "pval","Fold_Change")]
+ IF_b_w5_class <- IF_b_w5_class[which(IF_b_w5_class[,"pval"] <= 0.05),]
+ 
+### see what class is affected
+ summary(IF_b_w5_class)
+
+ 
+
+
+```
+# IF baseline vs month 3
+
+```{r}
+IF_b_3m <- omu_summary(
+
+  count_data = count_df,
+  metadata = meta_data_df,
+  numerator = "Intermittent Fasting B0",
+  denominator = "Intermittent Fasting F3",
+  response_variable = "Metabolite",
+  Factor = "Condition",
+  log_transform = TRUE,
+  p_adjust = "BH",
+  test_type = "mwu"
+  
+)
+
+### See what metabolites are significant 
+
+IF_b_3m$diffexpressed <- "NO"
+# if Foldchange >1 and pvalue < 0.05, set as "UP"
+IF_b_3m$diffexpressed[IF_b_3m$Fold_Change > 1.0 & IF_b_3m$pval < 0.05] <- "UP"
+# if Foldchange < -1 and pvalue < 0.05, set as "DOWN"
+IF_b_3m$diffexpressed[IF_b_3m$Fold_Change < 1.0 & IF_b_3m$pval < 0.05] <- "DOWN"
+
+#How many significant metabolites? 
+IF_b_3m %>% count(diffexpressed)
+
+summary(IF_b_3m$Class)## Finding what other classes to subset by
+
+#What are the metabolites that are significant by Class 
+
+IF_b_3m_class<-  IF_b_3m[c("Metabolite", "KEGG","Class", "diffexpressed", "pval", "Fold_Change")]
+ IF_b_3m_class <- IF_b_3m_class[which(IF_b_3m_class[,"pval"] <= 0.05),]
+ 
+### see what class is affected
+ summary(IF_b_3m_class)
+
+```
+identify common and unique metabolites
+
+#Upregulated Venn diagram for NIF
+```{r}
+#Subset the metabolites that are UP regulated into own df 
+
+### Use the class df 
+Upregulated_NIF_w5 <- subset(NIF_b_w5_class, diffexpressed == "UP")
+
+Upregulated_NIF_w5$Time_point <- "Week 5"
+
+
+Upregulated_NIF_m3 <- subset(NIF_b_3m_class, diffexpressed == "UP")
+
+Upregulated_NIF_m3$Time_point <- "Month 3"
+
+
+
+
+library(VennDiagram)
+venn.diagram(
+  x = list(Upregulated_NIF_w5$Metabolite, Upregulated_NIF_m3$Metabolite),
+  category.names = c("Week 5", "Month 3"),
+  filename = "venn_metabolites_NIF_all_U.png"
+)
+
+common_metabolites_NIF_all_U <- Reduce(intersect,list(Upregulated_NIF_w5$Metabolite, Upregulated_NIF_m3$Metabolite))
+
+print(common_metabolites_NIF_all_U)
+
+```
+Downregulated Venn diagram for NIF 
+```{r}
+Downregulated_NIF_w5 <- subset(NIF_b_w5, diffexpressed == "DOWN")
+
+Downregulated_NIF_w5$Time_point <- "Week 5"
+
+Downregulated_NIF_m3 <- subset(NIF_b_3m, diffexpressed == "DOWN")
+
+Downregulated_NIF_m3$Time_point <- "Month 3"
+
+library(VennDiagram)
+venn.diagram(
+  x = list(Downregulated_NIF_w5$Metabolite, Downregulated_NIF_m3$Metabolite),
+  category.names = c("Week 5", "Month 3"),
+  filename = "venn_metabolites_NIF_all_D.png"
+)
+
+common_metabolites_NIF_all_D <- Reduce(intersect,list(Downregulated_NIF_w5$Metabolite, Downregulated_NIF_m3$Metabolite ))
+
+print(common_metabolites_NIF_all_D)
+
+
+
+```
+
+# significant metabolites seen in week 5 and month 3 
+
+"Adenosine 5'-Diphosphate" "Carnosol" "Niacinamide"  
+
+"Boldine"  "PE-NMe2(16:0/18:1(11Z))"
+
+Upregulated metabolites venn diagram IF
+```{r}
+Upregulated_IF_w5 <- subset(IF_b_w5_class, diffexpressed == "UP")
+
+Upregulated_IF_m3 <- subset(IF_b_3m_class, diffexpressed =="UP")
+
+library(VennDiagram)
+venn.diagram(
+  x = list(Upregulated_IF_w5$Metabolite, Upregulated_IF_m3$Metabolite),
+  category.names = c("Week 5", "Month 3"),
+  filename = "venn_metabolites_IF_U.png"
+)
+
+common_metabolites_IF_all_U <- Reduce(intersect,list(Upregulated_IF_w5$Metabolite, Upregulated_IF_m3$Metabolite ))
+
+print(common_metabolites_IF_all_U)
+
+```
+#Downregulated metabolites venn Diagram IF
+```{r}
+Downregulated_IF_w5 <- subset(IF_b_w5_class, diffexpressed == "DOWN")
+
+Downregulated_IF_w5$Time_point <- "Week 5"
+
+Downregulated_IF_m3 <- subset(IF_b_3m_class, diffexpressed == "DOWN")
+
+Downregulated_IF_m3$Time_point <- "Month 3"
+
+library(VennDiagram)
+venn.diagram(
+  x = list(Downregulated_IF_w5$Metabolite, Downregulated_IF_m3$Metabolite),
+  category.names = c("Week 5", "Month 3"),
+  filename = "venn_metabolites_IF_all_D.png"
+)
+
+common_metabolites_IF_all_D <- Reduce(intersect,list(Downregulated_IF_w5$Metabolite, Downregulated_IF_m3$Metabolite ))
+
+print(common_metabolites_IF_all_D)
+```
+
+##Combining only significant metabolites that are seen in both week 5 and month 3
+
+"1-Octadecanoyl-2-eicosanoyl-glycero-3-phosphoserine"
+"Adenosine monophosphate"                            
+ "Raffinose"         
+"17alpha-Hydroxypregnenolone"              
+"N-(octadecanoyl)-4R-hydroxysphinganine"   
+ "PC(20:1(11Z)/22:6(4Z,7Z,10Z,13Z,16Z,19Z))"
+ "PE-NMe(15:0/22:2(13Z,16Z))"               
+"TG(14:0/14:0/20:5(5Z,8Z,11Z,14Z,17Z))"  
+
+
+#Track changes across time points 
+#Boxplots
+```{r}
+# Changes across Condition (Intermittent fasting vs Non-Intermmittent fasting)
+
+boxplot_metabolites_condition<- plot_boxplot(count_data = count_df, metadata = meta_data_df, log_transform = TRUE, Factor = "Arm", response_variable = "Metabolite", fill_list = c("darkgoldenrod1", "dodgerblue2"), aggregate_by = "Class")
+
+print(boxplot_metabolites_condition)
+
+```
+
+```{r}
+# Change across time 
+boxplot_metabolites_time <- plot_boxplot(count_data = count_df, metadata = meta_data_df, aggregate_by = "Class", Factor = "Time",log_transform = TRUE, fill_list =c("darkgoldenrod1", "dodgerblue2","red","darkorange","green","purple","pink","black") )
+
+print(boxplot_metabolites_time)
+```
+### I know what specific class of metabolites change just have to extract only significant values. 
+sig_threshold is taking into account padj not pval, need to get it to use pval so I only focus on those that are differentially expressed. This is looking at all of them. 
+#Count fold function
+
+```{r Count fold change}
+### Function count_fold changes ( changing the requirments from padj to pval and Log2FoldChange to Fold_Change)
+
+count_fold_changes <- function(count_data, column, sig_threshold, keep_unknowns){
+
+  if(is.null(count_data$pval)==TRUE){
+
+    stop("count_data must be the output of omu_summary or omu_anova and have a padj column
+    and a log2FoldChange column")
+
+  }
+
+  if(any(names(count_data) %in% column)==FALSE){
+
+    stop("count_data is missing metabolite metadata. Did you forget to use assign_hierarchy?")
+
+  }
+
+
+class(count_data) <- "data.frame"
+
+   Fold_Change <- neg <- NULL
+
+  count_data <- count_data[which(count_data[,"pval"] <= sig_threshold),]
+
+  count_data <- count_data %>% group_by(count_data[,column]) %>%
+   mutate(Significant_Changes = sum(Fold_Change > 1),
+          neg = sum(Fold_Change<1))
+
+ count_data <- count_data[,c(column, "Significant_Changes", "neg")]
+ count_data$neg <- count_data$neg * -1
+ output <- count_data[,c(1,3)]
+ count_data <- count_data[,c(1,2)]
+ colnames(output)[2] <- "Significant_Changes"
+ count_data <- rbind(count_data, output)
+
+ count_data$color <- ifelse(count_data$Significant_Changes < 0, "Decrease","Increase")
+
+ count_data <- count_data[apply(count_data[2],1,function(z) !any(z==0)),]
+
+
+  if(keep_unknowns==TRUE){
+    count_data = count_data
+    }else if(keep_unknowns==FALSE){
+     count_data <- drop_na(count_data)
+    }
+  unique(count_data[])
+
+}
+
+```
+# Individual classes 
+```{r}
+##Week 5
+fold_change_counts_w5 <- count_fold_changes(count_data = NIF_b_w5,
+column = "Class", sig_threshold = 0.05, keep_unknowns = "FALSE")
+
+library(ggplot2)
+Class_Bar_Plot_w5 <- plot_bar(fc_data = fold_change_counts_w5, fill = c("dodgerblue2", "firebrick2"), outline_color = c("black", "black"), size = c(1,1)) + labs(x = "Class") +theme(panel.grid =element_blank(), axis.text.x = element_text( size = 10 )
+)
+print(Class_Bar_Plot_w5)
+
+
+
+#### Plot as percentage 
+#### Understand wh
+```
+
+```{r}
+fold_change_counts_3m <- count_fold_changes(count_data = NIF_b_3m,
+column = "Class", sig_threshold = 0.05, keep_unknowns = "FALSE")
+
+library(ggplot2)
+Class_Bar_Plot_3m <- plot_bar(fc_data = fold_change_counts_3m, fill = c("dodgerblue2", "firebrick2"), outline_color = c("black", "black"), size = c(1,1)) + labs(x = "Class") +theme(panel.grid =element_blank(), axis.text.x = element_text( size = 10 )
+)
+print(Class_Bar_Plot_3m)
+```
+
+```{r}
+##Week 5
+fold_change_counts_w5_IF <- count_fold_changes(count_data = IF_b_w5,
+column = "Class", sig_threshold = 0.05, keep_unknowns = "FALSE")
+
+library(ggplot2)
+Class_Bar_Plot_w5_IF <- plot_bar(fc_data = fold_change_counts_w5_IF, fill = c("dodgerblue2", "firebrick2"), outline_color = c("black", "black"), size = c(1,1)) + labs(x = "Class") +theme(panel.grid =element_blank(), axis.text.x = element_text( size = 10)
+)
+print(Class_Bar_Plot_w5_IF)
+```
+
+```{r}
+
+fold_change_counts_3m_IF <- count_fold_changes(count_data = IF_b_3m,
+column = "Class", sig_threshold = 0.05, keep_unknowns = "FALSE")
+
+library(ggplot2)
+Class_Bar_Plot_3m_IF <- plot_bar(fc_data = fold_change_counts_3m_IF, fill = c("dodgerblue2", "firebrick2"), outline_color = c("black", "black"), size = c(1,1)) + labs(x = "Class") +theme(panel.grid =element_blank(), axis.text.x = element_text( size = 10 )
+)
+print(Class_Bar_Plot_3m_IF)
+
+```
+```{r}
+#Other ways to visualize the data
+#Statistcal tests for the boxplots
+# What do I do next??
+
+
+```
+
+#Scatterplot of each patient showing trend across time
+will plot only the significant metabolites from baseline vs week 5, and baseline month 3 for now. 
+```{r}
+
+NIF_b_3m_class$Time_point <- "Month 3"
+NIF_b_3m_class$Condition <- "Non-Intermittent Fasting"
+
+NIF_b_w5_class$Time_point <- "Week 5"
+NIF_b_w5_class$Condition <- "Non-Intermittent Fasting"
+
+IF_b_3m_class$Time_point <-"Month 3"
+IF_b_3m_class$Condition <- "Intermittent Fasting"
+
+IF_b_w5_class$Time_point <- "Week 5"
+IF_b_w5_class$Condition <- "Intermmittent Fasting"
+
+
+
+#Combine dataframes first
+
+#NIF significant metabolites both UP and DOWN regulated
+NIF_combined <- rbind(NIF_b_w5_class, NIF_b_3m_class)
+
+#IF significant metabolites both UP and DOWN regulated
+IF_combined <- rbind(IF_b_w5_class, IF_b_3m_class)
+
+
+```
+
+```{r}
+
+### Add a replicate column to metadata to differntiate bewtwen them 
+
+meta_data_df <- meta_data_df %>%
+  mutate(
+    Replicate = ifelse(str_detect(Sample_ID, "_2$"), "Replicate", "Original")
+  )
+
+  ### So I will make new patient column to join for the plot 
+meta_data_df <-  meta_data_df %>% mutate(Patient = str_split_fixed(Sample_ID, "_", 2)[,1])
+  
+
+  
+```
+
+```{r}
+only_count <- read_csv(file = "/Users/abnerportillo/Downloads/only_count_data_human.csv") 
+## going to have to subset for only those that are significant metabolites 
+rownames(only_count) <- only_count$Metabolite
+
+
+#Filter for significant metabolites in NIF
+tmp_NIF <- only_count[NIF_combined$Metabolite,]
+
+long_count_NIF <- pivot_longer(tmp_NIF, cols = starts_with("S"), 
+                           names_to = "Sample",
+                           values_to = "Count")
+
+## Dont join but instead filter for significant metabolites 
+
+#Filter for significant metabolites in IF 
+tmp_IF <- only_count[IF_combined$Metabolite,]
+
+long_count_IF <- pivot_longer(tmp_IF, cols = starts_with("S"),
+                           names_to = "Sample",
+                           values_to = "Count")
+
+
+```
+
+#Merge long df's with meta data 
+```{r}
+
+### I have to merge only with those that are not intermittent fasting in metadata
+merged_data_NIF <- long_count_NIF %>%
+  left_join(meta_data_df, by = "Sample")
+
+#Filter out for only NIF arm 
+merged_data_NIF <- merged_data_NIF %>% filter(Arm == "Non-Intermittent")
+
+print(merged_data_NIF)
+
+### Have to merge with only those that are IF in metadata
+merged_data_IF <- long_count_IF %>%
+  left_join(meta_data_df, by = "Sample")
+
+#Filter out for only IF arm 
+merged_data_IF <- merged_data_IF %>% filter(Arm == "Intermittent Fasting")
+
+print(merged_data_IF) 
+
+```
+
+```{r}
+#Filter out for only significant metaboltes seen in both week 5 and month 3
+
+selected_metabolites_NIF <- c("Adenosine 5'-Diphosphate", "Carnosol", "Niacinamide","Boldine",  "PE-NMe2(16:0/18:1(11Z))"  )
+
+# Filter the data frame
+merged_data_NIF_only_sig <- merged_data_NIF %>%
+ filter(Metabolite %in% selected_metabolites_NIF)
+
+
+
+selelcted_metabolites_IF <- c("1-Octadecanoyl-2-eicosanoyl-glycero-3-phosphoserine",
+"Adenosine monophosphate", "Raffinose" ,"17alpha-Hydroxypregnenolone" ,       "N-(octadecanoyl)-4R-hydroxysphinganine", "PC(20:1(11Z)/22:6(4Z,7Z,10Z,13Z,16Z,19Z))",
+ "PE-NMe(15:0/22:2(13Z,16Z))" , "TG(14:0/14:0/20:5(5Z,8Z,11Z,14Z,17Z))" )
+
+merged_data_IF_only_sig <- merged_data_IF %>%
+  filter(Metabolite %in% selelcted_metabolites_IF)
+
+
+
+# Filter based on condition 
+
+
+
+```
+
+
+#Plotting 
+```{r  plot wider, fig.width= 15, fig.height= 7}
+# NIF patients 
+
+# To fix issue with graphs not showing up correctly 
+
+
+
+ggplot(merged_data_NIF_only_sig, 
+       aes(x = Time, y = Count, color = interaction(Patient, Replicate), group = interaction(Patient, Metabolite, Replicate))) +
+  geom_line() +
+  geom_point() +
+  facet_wrap(~Metabolite, scales = "free_y") +
+  theme_minimal() +
+  labs(
+    title = "Metabolite Counts Over Time",
+    x = "Time",
+    y = "Count",
+    color = "Patient (Replicate)"  # Legend title
+  ) +
+  scale_x_discrete(labels = c("B0", "D1", "D1A", "D1B", "D5", "D7", "F3", "F6", "F9", "F12")) 
+
+
+
+
+```
+
+```{r plot wider, fig.width= 13, fig.height=7}
+# For IF patients
+ggplot(merged_data_IF_only_sig,  aes(x = Time, y = Count, color = interaction(Patient, Replicate), group = interaction(Patient, Metabolite, Replicate))) +
+  geom_line() +
+  geom_point() +
+  facet_wrap(~Metabolite, scales = "free_y") +
+  theme_minimal() +
+  labs(
+    title = "Metabolite Counts Over Time",
+    x = "Time",
+    y = "Count",
+    color = "Patient (Replicate)"  # Legend title
+  ) +
+  scale_x_discrete(labels = c("B0", "D1", "D1A", "D1B", "D5", "D7", "F3", "F6", "F9", "F12"))
+
+```
+# Have to fix all of the x axis labels on each figure so i can see all of the time oints and 
+
+
+
+#Week 5 signifcant changes in percentages 
+```{r}
+# significant changes as percentages table 
+NIF_w5_percent_changes <- ra_table(fc_data = fold_change_counts_w5, variable = "Class")
+
+# Pie chart with percentages of compounds that increased significantly (NIF)
+pie_chart_NIF_w5_inc <- pie_chart(ratio_data = NIF_w5_percent_changes, variable = "Class", column = "Increase", color = "black") +
+  labs(title = "Percentage of compounds that increased per class level NIF") +
+  guides(fill = guide_legend(title = "Compound classes"))  # Change legend title
+print(pie_chart_NIF_w5_inc)
+
+# Pie chart with percentages of compounds that decreased significantly (NIF)
+pie_chart_NIF_w5_dec <- pie_chart(ratio_data = NIF_w5_percent_changes, variable = "Class", column = "Decrease", color = "black") +
+  labs(title = "Percentage of compounds that decreased per class level NIF") +
+  guides(fill = guide_legend(title = "Compound classes"))
+print(pie_chart_NIF_w5_dec)
+
+# Pie chart with all significant changes (NIF)
+pie_chart_NIF_w5_all <- pie_chart(ratio_data = NIF_w5_percent_changes, variable = "Class", column = "Significant_Changes", color = "black") +
+  labs(title = "Percentage of compounds that are significant per class level NIF") +
+  guides(fill = guide_legend(title = "Compound classes"))
+print(pie_chart_NIF_w5_all)
+
+#Intermittent fasting w5 changes as percentages
+IF_w5_percent_changes <- ra_table(fc_data = fold_change_counts_w5_IF, variable = "Class")
+
+
+# Pie chart with percentages of compounds that increased significantly (IF)
+pie_chart_IF_w5_inc <- pie_chart(ratio_data = IF_w5_percent_changes, variable = "Class", column = "Increase", color = "black") +
+  labs(title = "Percentage of compounds that increased per class level IF") +
+  guides(fill = guide_legend(title = "Compound classes"))
+print(pie_chart_IF_w5_inc)
+
+# Pie chart with percentages of compounds that decreased significantly (IF)
+pie_chart_IF_w5_dec <- pie_chart(ratio_data = IF_w5_percent_changes, variable = "Class", column = "Decrease", color = "black") +
+  labs(title = "Percentage of compounds that decreased per class level IF") +
+  guides(fill = guide_legend(title = "Compound classes"))
+print(pie_chart_IF_w5_dec)
+
+# Pie chart with all significant changes (IF)
+pie_chart_IF_w5_all <- pie_chart(ratio_data = IF_w5_percent_changes, variable = "Class", column = "Significant_Changes", color = "black") +
+  labs(title = "Percentage of compounds that are significant per class level IF") +
+  guides(fill = guide_legend(title = "Compound classes"))
+print(pie_chart_IF_w5_all)
+
+```
+
+
+# Month 3 significant changes in percentages 
+```{r}
+
+##NIF percent change table 
+NIF_m3_percent_changes <- ra_table(fc_data = fold_change_counts_3m, variable = "Class")
+
+# pie chart with percentages of compounds that increased significantly 
+
+pie_chart_NIF_m3_inc <- pie_chart(ratio_data = NIF_m3_percent_changes, variable = "Class", column = "Increase", color = "black") +
+  labs(
+    title = "Percentage of compounds that increased per class level",
+  )+
+  guides(fill = guide_legend(title = "Compound classes"))
+ print(pie_chart_NIF_m3_inc)
+ 
+ pie_chart_NIF_m3_dec <- pie_chart(ratio_data = NIF_m3_percent_changes, variable = "Class", column = "Decrease", color = "black") +
+  labs(
+    title = "Percentage of compounds that decreased per class level",
+  )+
+  guides(fill = guide_legend(title = "Compound classes"))
+ print(pie_chart_NIF_m3_dec)
+ 
+ 
+ pie_chart_NIF_m3_all <- pie_chart(ratio_data = NIF_m3_percent_changes, variable = "Class", column = "Significant_Changes", color = "black") +
+  labs(
+    title = "Percentage of compounds that were significant per class level",
+  )+
+  guides(fill = guide_legend(title = "Compound classes"))
+ print(pie_chart_NIF_m3_all)
+ 
+ 
+#Intermittent fasting M3 changes as percentages
+ #Table 
+ IF_m3_percent_changes <- ra_table(fc_data = fold_change_counts_3m_IF, variable = "Class")
+
+# pie chart with percentages of compounds that increased significantly 
+
+pie_chart_IF_m3_inc <- pie_chart(ratio_data = IF_m3_percent_changes, variable = "Class", column = "Increase", color = "black") +
+  labs(
+    title = "Percentage of compounds that increased per class level",
+  )+
+  guides(fill = guide_legend(title = "Compound classes"))
+ print(pie_chart_IF_m3_inc)
+ 
+ pie_chart_IF_m3_dec <- pie_chart(ratio_data = IF_m3_percent_changes, variable = "Class", column = "Decrease", color = "black") +
+  labs(
+    title = "Percentage of compounds that decreased per class level",
+  )+
+  guides(fill = guide_legend(title = "Compound classes"))
+ print(pie_chart_IF_m3_dec)
+ 
+ 
+  pie_chart_IF_m3_all <- pie_chart(ratio_data = IF_m3_percent_changes, variable = "Class", column = "Significant_Changes", color = "black") +
+  labs(
+    title = "Percentage of compounds that were significant per class level",
+  )+
+  guides(fill = guide_legend(title = "Compound classes"))
+ print(pie_chart_IF_m3_all)
+ 
+ #### fix all of the labels in the legend and try to get percentages to show inside the pie chart. 
+ 
+ 
+ 
+```
+```{r}
+# Comparison between baseline and End of radiation B0 vs follow up 6 and 9
+
+# I have to now change my meta data to make follow up 6 and 9 one single follow up and compare baseline to this "follow up point"
+
+# Not enough replicates to make the comparison
+
+
+
+
+```
+# This is for everyone in month 3
+```{r}
+all_b_m3 <- omu_summary(
+
+  count_data = count_df,
+  metadata = meta_data_df,
+  numerator = "B0",
+  denominator =  "F3",
+  response_variable = "Metabolite",
+  Factor = "Time",
+  log_transform = TRUE,
+  p_adjust = "BH",
+  test_type = "mwu"
+  
+)
+
+### See what metabolites are significant 
+
+all_b_m3$diffexpressed <- "NO"
+# if Foldchange >1 and pvalue < 0.05, set as "UP"
+all_b_m3$diffexpressed[all_b_m3$Fold_Change > 1.0 & all_b_m3$pval < 0.05] <- "UP"
+# if Foldchange < -1 and pvalue < 0.05, set as "DOWN"
+all_b_m3$diffexpressed[all_b_m3$Fold_Change < 1.0 & all_b_m3$pval < 0.05] <- "DOWN"
+
+#How many significant metabolites? 
+all_b_m3 %>% count(diffexpressed)
+
+summary(all_b_m3$Class)## Finding what other classes to subset by
+
+#What are the metabolites that are significant by Class 
+
+all_b_m3_class<- all_b_m3[c("Metabolite", "KEGG","Class", "diffexpressed", "pval","Fold_Change")]
+ all_b_m3_class <- all_b_m3_class[which(all_b_m3_class[,"pval"] <= 0.05),]
+ 
+ 
+### see what class is affected
+ summary(all_b_m3_class)
+```
+
+# Metaboanalyst 
+
+```{r}
+metanr_packages <- function(){
+metr_pkgs <- c("impute", "pcaMethods", "globaltest", "GlobalAncova", "Rgraphviz", "preprocessCore", "genefilter", "SSPA", "sva", "limma", "KEGGgraph", "siggenes","BiocParallel", "MSnbase", "multtest", "RBGL", "edgeR", "fgsea", "devtools", "crmn")
+list_installed <- installed.packages()
+new_pkgs <- subset(metr_pkgs, !(metr_pkgs %in% list_installed[, "Package"]))
+if(length(new_pkgs)!=0){if (!requireNamespace("BiocManager", quietly = TRUE))
+        install.packages("BiocManager")
+        BiocManager::install(new_pkgs)
+        print(c(new_pkgs, " packages added..."))
+    }
+
+if((length(new_pkgs)<1)){
+        print("No new packages added...")
+    }
+}
+```
+
+```{r}
+metanr_packages()
+```
+```{r}
+install.packages("https://www.dropbox.com/s/pp9vziji96k5z5k/MetaboAnalystR_3.2.0.tar.gz", repos = NULL, method = "wget")
+
+
+```
+
+
+```{r}
+install.packages("pacman")
+
+library(pacman)
+
+pacman::p_load(c("impute", "pcaMethods", "globaltest", "GlobalAncova", "Rgraphviz", "preprocessCore", "genefilter", "SSPA", "sva", "limma", "KEGGgraph", "siggenes","BiocParallel", "MSnbase", "multtest", "RBGL", "edgeR", "fgsea"))
+
+```
+
+```{r}
+install.packages("devtools")
+library(devtools)
+
+# Step 2: Install MetaboAnalystR without documentation
+devtools::install_github("xia-lab/MetaboAnalystR", build = TRUE, build_vignettes = FALSE)
+
+```
+
+```{r}
+library(MetaboAnalystR)
+
+# Initialize an example data analysis
+mSet <- InitDataObjects("conc", "msetora", FALSE)
+print("MetaboAnalystR successfully installed and loaded!")
+
+```
+#Time Series Analysis 
+
+```{r}
+# Want to label the compounds that are defined as other for now using ChemID
+
+count_df <- assign_hierarchy(count_data = count_df, keep_unknowns = TRUE, identifier = "PubChem CID")
+
+
+```
+
