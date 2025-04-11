@@ -15,6 +15,15 @@ metlData <- read.csv("~/Roselab/Metabolite/data/data_for_analysis/metabolite_dat
 metaData <- read.csv("~/Roselab/Metabolite/data/data_for_analysis/meta_data_74.csv")
 metlData_log2 <- log2(metlData + 1)
 
+
+# Cleaning up the data
+row_vars <- apply(metlData_log2, 1, var)
+variance_threshold <- 0.5
+metlData_log2_filtered <- metlData_log2[row_vars >= variance_threshold, ]
+
+cat("Before filtering:", nrow(metlData_log2), "metabolites\n")
+cat("After filtering:", nrow(metlData_log2_filtered), "metabolites\n")
+
 # Guiding question
 # What happens over time in NIF (control)?
 # 
@@ -32,7 +41,7 @@ metaSubset <- metaData %>%
   mutate(Patient_ID = gsub("_.*", "", Sample_ID))
 
 # Ensure the samples in the metabolite data match the order in metaSubset
-metlData_subset <- metlData_log2[, metaSubset$Sample_ID, drop = FALSE]
+metlData_subset <- metlData_log2_filtered[, metaSubset$Sample_ID, drop = FALSE]
 
 # Convert the Time variable to a factor with levels ordered as specified
 # Levels defines the order of sequences, so the order is important when setting timepoints_of_interest
@@ -44,7 +53,7 @@ metaSubset$Time <- factor(metaSubset$Time, levels = timepoints_of_interest)
 metaSubset$Arm <- factor(metaSubset$Arm, levels = c("NIF", "IF"))
 
 # -----------------------------
-# 2. Building the Design Matrix
+# Building the Design Matrix
 # -----------------------------
 # Create a design matrix with an interaction between Arm and Time.
 # This will yield the following columns (by default):
@@ -58,7 +67,7 @@ print("Design matrix columns:")
 print(colnames(design))
 
 # -----------------------------
-# 3. Fitting the Model with limma (Repeated Measures)
+# Fitting the Model with limma (Repeated Measures)
 # -----------------------------
 # If you have repeated measurements from the same patient, account for within-patient correlation.
 
@@ -67,7 +76,7 @@ fit <- lmFit(metlData_subset, design, block = metaSubset$Patient_ID, correlation
 fit <- eBayes(fit)
 
 # -----------------------------
-# 4. Defining Contrasts
+# Defining Contrasts
 # -----------------------------
 # Here we define contrasts to extract:
 # (a) Within-arm changes relative to baseline:
@@ -112,15 +121,19 @@ print(contr.matrix)
 fit2 <- contrasts.fit(fit, contr.matrix)
 fit2 <- eBayes(fit2)
 
+saveRDS(fit2, file = "~/Roselab/Metabolite/results/time_series_analysis/fit2_results_B0toF6_filtered.rds")
+
 # -----------------------------
 # 5. Extracting and Saving Results
 # -----------------------------
 # Example: Extract results for the interaction at D5 (i.e. difference in D5 change between arms)
-results_Interact_D5 <- topTable(fit2, coef = "Interact_D5", number = Inf)
+results_Interact_D5_filtered <- topTable(fit2, coef = "Interact_D5", number = Inf)
+results_Interact_F3_filtered <- topTable(fit2, coef = "Interact_F3", number = Inf)
 print("Top results for interaction at D5 (difference in change between arms):")
 print(results_Interact_D5)
 
 # Similarly, extract results for other contrasts as needed:
+results_IF_F3 <- topTable(fit2, coef = "IF_D5_vs_B0", number = Inf)
 results_IF_F3 <- topTable(fit2, coef = "IF_F3_vs_B0", number = Inf)
 results_NIF_F3 <- topTable(fit2, coef = "NIF_F3_vs_B0", number = Inf)
 results_between_F3 <- topTable(fit2, coef = "NIF_vs_IF_F3", number = Inf)
