@@ -169,21 +169,53 @@ plot_metabolite_boxplots <- function(metabolite_names, output_dir, metlData_log2
 
 #-------------------------- Common metabolite plots - peptides ----------------
 
-outDir_common_peptides <- "~/Roselab/Metabolite/results/Figures/MetabolitePlots/common_metabolites/peptides/"
+# outDir_common_peptides <- "~/Roselab/Metabolite/results/Figures/MetabolitePlots/common_metabolites/peptides/"
+# 
+# #Pepties
+# common_pepties <- c("MW0151607|Ile-Thr-Tyr-Asp", "MW0159127|Val-Phe-Phe-Asn-Gly",
+#                     "MW0151164|His-HoPhe-OH", "MW0158431|Tyr-Gln-Asp")
+# 
+# plot_metabolite_trends(metabolite_names = common_pepties,
+#                        output_dir = outDir_common_peptides,
+#                        metlData_log2 = metlData_log2,
+#                        metaData = metaData)
+# 
+# plot_metabolite_boxplots(metabolite_names = common_pepties,
+#                          output_dir = outDir_common_peptides,
+#                          metlData_log2 = metlData_log2,
+#                          metaData = metaData)
 
-#Pepties
-common_pepties <- c("MW0151607|Ile-Thr-Tyr-Asp", "MW0159127|Val-Phe-Phe-Asn-Gly",
-                    "MW0151164|His-HoPhe-OH", "MW0158431|Tyr-Gln-Asp")
 
-plot_metabolite_trends(metabolite_names = common_pepties,
-                       output_dir = outDir_common_peptides,
+# ------------------ Common metabolites - hormones -----------------------------
+
+outDir_common_hormones <- "~/Roselab/Metabolite/results/Figures/MetabolitePlots/common_metabolites/hormones/"
+
+common_hormone <- c("MW0017085|Cholesterol sulfate", "MW0126450|Riboflavin reduced",
+                    "MW0063752|Ursocholyltaurine", "MW0147772|Coproporphyrin I",
+                    "MW0105369|6-Sulfatoxymelatonin", "MW0010768|Cloprostenol"
+                    )
+
+plot_metabolite_trends(metabolite_names = common_hormone,
+                       output_dir = outDir_common_hormones,
                        metlData_log2 = metlData_log2,
                        metaData = metaData)
 
-plot_metabolite_boxplots(metabolite_names = common_pepties,
-                         output_dir = outDir_common_peptides,
+plot_metabolite_boxplots(metabolite_names = common_hormone,
+                         output_dir = outDir_common_hormones,
                          metlData_log2 = metlData_log2,
                          metaData = metaData)
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

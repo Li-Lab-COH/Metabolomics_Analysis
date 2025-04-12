@@ -22,17 +22,17 @@ run_enrichment_analysis <- function(results, output_dir, which_results, directio
   # Step 1: Filter your results based on the logFC direction parameter
   if (is.null(direction)) {
     hmdb_list <- results %>%
-      filter(p_value <= 0.05 & HMDB != "-") %>%
+      filter(P.Value <= 0.05 & HMDB != "-") %>%
       pull(HMDB)
     plt_name <- "ALL"
   } else if (toupper(direction) == "UP") {
     hmdb_list <- results %>%
-      filter(p_value <= 0.05 & log2FC > 0 & HMDB != "-") %>%
+      filter(P.Value <= 0.05 & log2FC > 0 & HMDB != "-") %>%
       pull(HMDB)
     plt_name <- "UP"
   } else if (toupper(direction) == "DOWN") {
     hmdb_list <- results %>%
-      filter(p_value <= 0.05 & log2FC < 0 & HMDB != "-") %>%
+      filter(P.Value <= 0.05 & log2FC < 0 & HMDB != "-") %>%
       pull(HMDB)
     plt_name <- "DOWN"
   } else {
@@ -66,8 +66,27 @@ run_enrichment_analysis <- function(results, output_dir, which_results, directio
   # Step 7: Set the metabolite set library for pathway analysis (e.g., SMPDB pathways)
   mSet <- MetaboAnalystR::SetCurrentMsetLib(mSet, "smpdb_pathway", 0)
   print("before ehre?")
+  
+  # Defensive checks before CalculateHyperScore()
+  cat("Checking compound-pathway mapping before enrichment...\n")
+  
+  # Check mapping table
+  if (is.null(mSet$dataSet$map.table) || nrow(mSet$dataSet$map.table) == 0) {
+    stop("Mapping table is empty. No compounds were successfully mapped.")
+  }
+  
+  
   # Step 8: Run the enrichment analysis (hypergeometric test)
   mSet <- MetaboAnalystR::CalculateHyperScore(mSet)
+  
+  print("calculated hyperscore")
+  
+  # Check if enrichment results exist and are properly formatted
+  enrichment_results <- mSet$analSet$ora.mat
+  if (is.null(enrichment_results) || !is.matrix(enrichment_results)) {
+    warning("No enrichment results found or result is not a matrix. Possibly no hits.")
+    return(NULL)
+  }
   
   # Extract the enrichment analysis results table
   enrichment_results <- mSet$analSet$ora.mat
@@ -131,24 +150,55 @@ run_enrichment_analysis <- function(results, output_dir, which_results, directio
 }
 
 
+# # test_extract <- read.csv("~/Roselab/Metabolite/results/MarkResults/between_group_pvalues_F3.csv")
+# my_results <- read.csv("~/Roselab/Metabolite/results/MarkResults/between_group_pvalues_F3.csv")
+# # my_results <- read.csv("~/Roselab/Metabolite/results/difference/limma/intraArm/limma_intraArm_F3_IF_vs_NIF.csv")
+# 
+# output_fig <- "~/Roselab/Metabolite/results/Figures/ORA/"
+# 
+# analysis_output <- run_enrichment_analysis(results = my_results,
+#                                            output_dir = output_fig,
+#                                            which_results = "F3",
+#                                            direction = "UP")
+# # Check the enrichment table:
+# head(analysis_output$enrichment_results)
+# 
+# 
+# analysis_output$mSet$analSet$ora.hits$`Alpha Linolenic Acid and Linoleic Acid Metabolism`
+# 
+# mapped_table <- analysis_output$mSet$dataSet$map.table
+# mapped_table[mapped_table[, "Match"] == "Cis-8,11,14,17-Eicosatetraenoic acid", ]
+
+
+
+#------------------- Common metabolites --------------------------
+
+
+
 # test_extract <- read.csv("~/Roselab/Metabolite/results/MarkResults/between_group_pvalues_F3.csv")
-my_results <- read.csv("~/Roselab/Metabolite/results/MarkResults/between_group_pvalues_F3.csv")
+my_results_common <- read.csv("~/Roselab/Metabolite/results/difference/common_D5_F3/D5_common_metabolite_results.csv")
 # my_results <- read.csv("~/Roselab/Metabolite/results/difference/limma/intraArm/limma_intraArm_F3_IF_vs_NIF.csv")
 
-output_fig <- "~/Roselab/Metabolite/results/Figures/ORA/"
+output_fig_common <- "~/Roselab/Metabolite/results/Figures/MetabolitePlots/common_metabolites/ORA/"
 
-analysis_output <- run_enrichment_analysis(results = my_results,
-                                           output_dir = output_fig,
-                                           which_results = "F3",
-                                           direction = "UP")
+analysis_output <- run_enrichment_analysis(results = my_results_common,
+                                           output_dir = output_fig_common,
+                                           which_results = "Common_metabolites"
+                                           )
 # Check the enrichment table:
 head(analysis_output$enrichment_results)
 
 
-analysis_output$mSet$analSet$ora.hits$`Alpha Linolenic Acid and Linoleic Acid Metabolism`
 
-mapped_table <- analysis_output$mSet$dataSet$map.table
-mapped_table[mapped_table[, "Match"] == "Cis-8,11,14,17-Eicosatetraenoic acid", ]
+
+
+
+
+
+
+
+
+
 
 
 
