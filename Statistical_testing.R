@@ -1,5 +1,5 @@
 # ================================
-# 0. Setup & Directory Creation
+# Setup & Directory Creation
 # ================================
 "~/Roselab/Metabolite/results/"
 # Function to create directories if they do not exist
@@ -73,7 +73,7 @@ process_results <- function(results_df, metabolite_meta_data) {
 }
 
 # ================================
-# 2. LIMMA Analysis
+# LIMMA Analysis
 # ================================
 
 ## (A) IntraArm Comparisons (Between groups at the same time point)
@@ -147,7 +147,7 @@ for(arm in arms){
 }
 
 # ================================
-# 3. T.TEST Analysis
+# T.TEST Analysis
 # ================================
 # For the t.test analyses, we perform similar comparisons as above.
 # A helper function is defined to run t.tests for each metabolite (row) in a data matrix.
