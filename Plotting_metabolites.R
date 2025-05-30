@@ -205,6 +205,59 @@ plot_metabolite_boxplots(metabolite_names = common_hormone,
                          metlData_log2 = metlData_log2,
                          metaData = metaData)
 
+# -------------------------- Mark Idents -------------------------------------
+
+outDir_Mark_idents <- "~/Roselab/Metabolite/results/Figures/MarkIdents/"
+
+Mark_idents <- c("MW0004036|Isovanillic acid", "MW0115839|(2E)-3-(1H-indol-2-yl)prop-2-enoic acid",
+                 "MW0017085|Cholesterol sulfate")
+
+plot_metabolite_trends(metabolite_names = Mark_idents,
+                       output_dir = outDir_Mark_idents,
+                       metlData_log2 = metlData_log2,
+                       metaData = metaData)
+
+plot_metabolite_boxplots(metabolite_names = Mark_idents,
+                         output_dir = outDir_Mark_idents,
+                         metlData_log2 = metlData_log2,
+                         metaData = metaData)
+
+
+# -------------------------- Mark Idents -------------------------------------
+
+outDir_Mark_idents <- "~/Roselab/Metabolite/results/Figures/MarkIdents/"
+
+Mark_idents <- c("MW0004036|Isovanillic acid", "MW0115839|(2E)-3-(1H-indol-2-yl)prop-2-enoic acid",
+                 "MW0017085|Cholesterol sulfate")
+
+plot_metabolite_trends(metabolite_names = Mark_idents,
+                       output_dir = outDir_Mark_idents,
+                       metlData_log2 = metlData_log2,
+                       metaData = metaData)
+
+plot_metabolite_boxplots(metabolite_names = Mark_idents,
+                         output_dir = outDir_Mark_idents,
+                         metlData_log2 = metlData_log2,
+                         metaData = metaData)
+# -------------------------- Mark Idents2 -------------------------------------
+
+outDir_Mark_idents2 <- "~/Roselab/Metabolite/results/Figures/MarkIdents/idents"
+
+Mark_idents2 <- c("MW0147772|Coproporphyrin I",
+                 "MW0010768|Cloprostenol",
+                 "MW0126450|Riboflavin reduced",
+                 "MW0105369|6-Sulfatoxymelatonin")
+
+plot_metabolite_trends(metabolite_names = Mark_idents2,
+                       output_dir = outDir_Mark_idents2,
+                       metlData_log2 = metlData_log2,
+                       metaData = metaData)
+
+plot_metabolite_boxplots(metabolite_names = Mark_idents2,
+                         output_dir = outDir_Mark_idents2,
+                         metlData_log2 = metlData_log2,
+                         metaData = metaData)
+
 
 
 
