@@ -1,7 +1,8 @@
 # Load required libraries
 library(limma)
 library(dplyr)
-BiocManager::install("limma")
+library(readxl)
+
 # B0 - baseline
 # D1 - new start
 # D5 - week 5
@@ -11,18 +12,26 @@ BiocManager::install("limma")
 # F12 - moth 12
 
 
-metlData <- read.csv("~/Roselab/Metabolite/data/data_for_analysis/metabolite_data_74.csv", row.names = "ID" )
-metaData <- read.csv("~/Roselab/Metabolite/data/data_for_analysis/meta_data_74.csv")
+protData <- read.csv("~/1Work/RoseLab/Metabolomics/data/proteomics/for_analysis/ResultsTables_Filtered_1.csv")
+metaData <- read_excel("~/1Work/RoseLab/Metabolomics/data/proteomics/for_analysis/meta_data_proteomics 2.xlsx")
 
-summary(unlist(metlData[9032, ]))
-hist(unlist(metlData[9032, ]), breaks = 20)
-hist(log2(unlist(metlData[9032, ])), breaks = 20)
+rownames(protData) <- protData$SeqID
+protData$SeqID <- NULL
+  
 
 
+summary(unlist(protData[1032, ]))
+hist(unlist(protData[1032, ]), breaks = 20)
+hist(log2(unlist(protData[032, ])), breaks = 20)
+
+#-------------------------Any values between 0 and 1? ------------------------
+
+low_val <- protData[apply(protData, 1, function(row) any(row > 0 & row < 1)), ]
+# No, you can use log transformation safely
 
 #------------------------- Testing loop -------------------------------------
 
-metlData_log2 <- log2(metlData + 1)
+protData_log2 <- log2(protData)
 
 # Define timepoints of interest
 timepoints <- c("B0", "D1", "D5", "F3", "F6", "F9", "F12")
@@ -40,10 +49,10 @@ comparison_samples <- md_arm %>%
   filter(Time %in% c("B0", tp)) %>% 
   pull(Sample_ID)
 
-data_subset <- metlData_log2[, comparison_samples, drop = FALSE]
+data_subset <- protData_log2[, comparison_samples, drop = FALSE]
 
 
-# SEtting up column labels
+# Setting up column labels
 comparison_samples
 md_arm$Sample_ID
 
@@ -70,7 +79,7 @@ design
 #       pull(Sample_ID)
 # 
 #     # Subset log2-transformed data for these samples
-#     data_subset <- metlData_log2[, comparison_samples, drop = FALSE]
+#     data_subset <- protData_log2[, comparison_samples, drop = FALSE]
 # 
 #     # Make sure sample order in metadata matches column order in data
 #     time_group <- factor(md_arm$Time[match(comparison_samples, md_arm$Sample_ID)],
@@ -97,8 +106,8 @@ design
     
     # Progress message
     cat("Saved differential analysis for arm", a, "timepoint", tp, "vs B0 to", file_name, "\n")
-  }
-}
+#   }
+# }
 
 
 #------------------------- suggested loop ----------------------------------
@@ -113,11 +122,11 @@ design
 # Only apply if not already log-transformed
 # You can adjust the pseudo count (1) if your values are very small
 
-metlData_log2 <- log2(metlData + 1)
+protData_log2 <- log2(protData + 1)
 
 # Optional: Inspect distribution before and after log2 to verify
-# hist(unlist(metlData[2000, ]), main = "Original")
-# hist(unlist(metlData_log2[2000, ]), main = "Log2-transformed")
+# hist(unlist(protData[2000, ]), main = "Original")
+# hist(unlist(protData_log2[2000, ]), main = "Log2-transformed")
 
 # -------------------------------
 # Step 2: Differential analysis
@@ -139,7 +148,7 @@ for (a in arms) {
       pull(Sample_ID)
     
     # Subset log2-transformed data for these samples
-    data_subset <- metlData_log2[, comparison_samples, drop = FALSE]
+    data_subset <- protData_log2[, comparison_samples, drop = FALSE]
     
     # Make sure sample order in metadata matches column order in data
     time_group <- factor(md_arm$Time[match(comparison_samples, md_arm$Sample_ID)],
