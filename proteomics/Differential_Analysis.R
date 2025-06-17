@@ -1,12 +1,26 @@
+# =============================================================================
+# Proteomics Differential Expression Pipeline (Limma)
+#
+# - Load R libraries and import proteomics intensities, sample metadata, and annotations
+# - Log2‐transform intensities and filter out the bottom 15% low‐variance proteins
+# - Define helper functions for merging results with metadata and ensuring output directories
+# - Intra‐arm (between diets) comparisons at D1–F12: unpaired IF vs NIF contrasts
+# - Within‐arm (time‐course) analyses per diet: paired B0 vs D1–F12 with Patient_ID blocking
+# - Compute and FDR‐correct statistics, retain proteins with raw P ≤ 0.05, merge with annotations
+# - Save annotated CSV results into organized “intraArm/” and “withinArm/” subfolders
+#
+# Usage: source this script to execute all preprocessing, modeling, and output steps
+# =============================================================================
+
+
 # Load required libraries
 library(limma)
 library(dplyr)
 library(readxl)
 library(stringr)
 library(caret)
-install.packages("caret")
-nzv <- nearZeroVar(protData_log2)
-prot_clean <- protData_log2[-nzv, ]
+library(matrixStats)
+library(ggplot2)
 
 # B0 - baseline
 # D1 - new start
@@ -16,14 +30,17 @@ prot_clean <- protData_log2[-nzv, ]
 # F9 - month 9
 # F12 - moth 12
 
-
+#======================= Processing data =====================================
 protData <- read.csv("~/1Work/RoseLab/Metabolomics/data/proteomics/for_analysis/ResultsTables_Filtered_1.csv")
 metaData <- read_excel("~/1Work/RoseLab/Metabolomics/data/proteomics/for_analysis/meta_data_proteomics 2.xlsx")
 prot_metadata <- read.csv("~/1Work/RoseLab/Metabolomics/data/proteomics/for_analysis/protein_metadata.csv")
-protData_log2 <- log2(protData)
+
+# Preparing names
 rownames(protData) <- protData$SeqID
 protData$SeqID <- NULL
-  
+
+# Processing data
+protData_log2 <- log2(protData)
 
 # # Exploring data
 # summary(unlist(protData[1032, ]))
@@ -31,7 +48,41 @@ protData$SeqID <- NULL
 # hist(log2(unlist(protData[032, ])), breaks = 20)
 
 
+#------------------- Removing low variance ---------------------------------
 
+# # compute variances
+# vars <- rowVars(as.matrix(protData_log2), na.rm=TRUE)
+# 
+# # pick a few candidate cutoffs
+# cuts <- quantile(vars, probs = c(0.01, 0.05, 0.10, 0.15, 0.25))
+# 
+# # Base‐R histogram + vertical lines
+# hist(vars,
+#      breaks = 5000,
+#      main   = "Protein variance distribution",
+#      xlab   = "Variance",
+#      xlim = c(0,0.3),
+#      col    = "lightgray")
+# abline(v = cuts, col = c("blue","green","orange","red"), lwd = 2)
+# legend("topright",
+#        legend = paste0(names(cuts)," = ", round(cuts,3)),
+#        col    = c("blue","green","orange","red"),
+#        lwd    = 2,
+#        cex    = 0.8)
+
+# Compute per‐protein variances
+vars    <- rowVars(as.matrix(protData_log2), na.rm=TRUE)
+
+# Establish the 15th-percentile cutoff
+var_cut <- quantile(vars, 0.15)
+
+# Subset your matrix to keep only proteins above that cutoff
+dim(protData_log2)
+protData_log2 <- protData_log2[vars > var_cut, ]
+dim(protData_log2)
+# Check dimensions
+# cat("Before:", nrow(protData_log2), "proteins\n")
+# cat("After: ", nrow(prot_clean),     "proteins (bottom 10% removed)\n")
 #------------------------- Functions ----------------------------------
 
 append_sig_results_with_metadata <- function(results_df, metadata_df, metadata_id_col = "SeqID") {
