@@ -169,3 +169,11 @@ for (a in arms) {
     cat("Saved differential analysis for arm", a, "timepoint", tp, "vs B0 to", file_name, "\n")
   }
 }
+
+
+
+# Testing QC values
+
+mean(c(1117.08,	970.22,	1099.54,	912.8,	1240.92,	1001.48, 1033.5, 1018.93))
+mean(c(5315.86, 5083.45, 5323.8, 5136.18, 4954.34, 4676.95, 5562, 5946.26))
+
