@@ -9,6 +9,8 @@ library(stringr)
 library(caret)
 library(matrixStats)
 library(ggplot2)
+library(svglite)
+
 
 # B0 - baseline
 # D1 - new start
@@ -138,13 +140,13 @@ plot_feature_trends <- function(
     metaData,
     sample_col  = "Sample_ID",
     time_col    = "Time",
-    arm_col     = "Arm",          # NEW
-    arm_include = "NIF",          # NEW (set NULL to include all arms)
+    arm_col     = "Arm",              # group shown in color
+    arm_include = NULL,               # set to c("NIF","IF") to force only those; NULL = all arms present
     valid_times = c("B0","D5","F3"),
     transform_y = c("none","log2p1"),
     molMetadata = NULL,
-    id_col      = NULL,
-    title_col   = NULL
+    id_col      = NULL,               # e.g., "SeqID" (protein) or "Index" (metabolite)
+    title_col   = NULL                # e.g., "Description" (protein) or "Compounds" (metabolite)
 ){
   transform_y <- match.arg(transform_y)
   if (!dir.exists(output_dir)) {
@@ -154,50 +156,41 @@ plot_feature_trends <- function(
     message("Folder exists: ", output_dir)
   }
   
-  # keep only numeric sample columns
+  # numeric sample columns only
   num_cols <- vapply(expr_data, is.numeric, logical(1))
   X <- as.matrix(expr_data[, num_cols, drop = FALSE])
   
   # optional transform
-  if (transform_y == "log2p1") {
-    X <- log2(X + 1)
-    ylab <- "Log2(+1) abundance"
-  } else {
-    ylab <- "Abundance"
-  }
+  ylab <- if (transform_y == "log2p1") { X <- log2(X + 1); "Log2 abundance" } else { "Abundance" }
   
-  # basic checks
+  # checks
   stopifnot(all(c(sample_col, time_col) %in% colnames(metaData)))
+  if (!arm_col %in% colnames(metaData)) stop("'", arm_col, "' column not found in metaData.")
   
-  # ---- Arm filter (before alignment) ----
+  # filter arms (if requested)
   meta_filt <- metaData
   if (!is.null(arm_include)) {
-    if (!arm_col %in% colnames(meta_filt)) {
-      stop("Requested arm filtering but '", arm_col, "' not found in metaData.")
-    }
     meta_filt <- dplyr::filter(meta_filt, .data[[arm_col]] %in% arm_include)
   }
   
-  # align to expression data
+  # align samples
   common <- intersect(colnames(X), meta_filt[[sample_col]])
-  if (length(common) < 2) {
-    stop("Not enough overlapping samples between expr_data and metaData after arm filtering.")
-  }
+  if (length(common) < 2) stop("Not enough overlapping samples between expr_data and metaData after arm filtering.")
   meta_sub <- meta_filt[match(common, meta_filt[[sample_col]]), , drop = FALSE]
   X <- X[, common, drop = FALSE]
   
-  # filter by valid times
+  # filter timepoints
   keep_time <- meta_sub[[time_col]] %in% valid_times
   if (!any(keep_time)) stop("No samples in requested valid_times: ", paste(valid_times, collapse=", "))
   meta_sub <- meta_sub[keep_time, , drop = FALSE]
   X <- X[, keep_time, drop = FALSE]
   meta_sub[[time_col]] <- factor(meta_sub[[time_col]], levels = valid_times)
   
-  # ---- build a lookup from molMetadata if provided ----
+  # title lookup from molecule metadata (optional)
   title_lookup <- NULL
   if (!is.null(molMetadata) && !is.null(id_col) && !is.null(title_col)) {
     if (!all(c(id_col, title_col) %in% colnames(molMetadata))) {
-      stop("molMetadata must contain columns: ", paste(c(id_col, title_col), collapse = ", "))
+      stop("molMetadata must contain: ", paste(c(id_col, title_col), collapse = ", "))
     }
     key   <- as.character(molMetadata[[id_col]])
     value <- as.character(molMetadata[[title_col]])
@@ -207,9 +200,7 @@ plot_feature_trends <- function(
   # iterate features
   feature_names <- as.character(feature_names)
   for (feat in feature_names) {
-    if (!feat %in% rownames(X)) {
-      warning("Feature not found in expr_data: ", feat); next
-    }
+    if (!feat %in% rownames(X)) { warning("Feature not found in expr_data: ", feat); next }
     
     pretty_title <- if (!is.null(title_lookup) && feat %in% names(title_lookup)) title_lookup[[feat]] else feat
     
@@ -218,35 +209,151 @@ plot_feature_trends <- function(
     df[[sample_col]] <- colnames(X)
     df <- df[, c(sample_col, "Value")]
     
+    # join metadata
     df <- dplyr::left_join(df, meta_sub, by = setNames(sample_col, sample_col))
     df <- dplyr::filter(df, .data[[time_col]] %in% valid_times)
     if (nrow(df) == 0) { warning("No data for feature ", feat, " at requested timepoints."); next }
     df[[time_col]] <- factor(df[[time_col]], levels = valid_times)
     
+    # summary by Time and Arm
     df_sum <- df %>%
-      dplyr::group_by(.data[[time_col]]) %>%
+      dplyr::group_by(.data[[time_col]], .data[[arm_col]]) %>%
       dplyr::summarise(
         meanValue = mean(Value, na.rm = TRUE),
-        sdValue   = sd(Value, na.rm = TRUE),
+        sdValue   = sd(Value,   na.rm = TRUE),
         n         = dplyr::n(),
         .groups   = "drop"
       )
     
-    p <- ggplot(df, aes(x = .data[[time_col]], y = Value)) +
-      geom_jitter(width = 0.1, alpha = 0.7, size = 2) +
-      geom_point(data = df_sum, aes(x = .data[[time_col]], y = meanValue), size = 3, shape = 18, inherit.aes = FALSE) +
-      geom_line (data = df_sum, aes(x = .data[[time_col]], y = meanValue, group = 1), linewidth = 0.6, inherit.aes = FALSE) +
-      geom_errorbar(data = df_sum, aes(x = .data[[time_col]], ymin = meanValue - sdValue, ymax = meanValue + sdValue),
-                    width = 0.15, inherit.aes = FALSE) +
-      labs(title = pretty_title, x = "Time", y = ylab, subtitle = feat) +
-      theme_bw()
     
-    file_suffix <- if (is.null(arm_include)) "ALL" else paste(arm_include, collapse = "-")
-    file_out <- file.path(output_dir, paste0(feat, "_trend_", file_suffix, ".png"))
-    ggsave(file_out, plot = p, width = 8, height = 6, dpi = 300)
-    message("Saved plot: ", file_out)
+    # sizing knobs (mm; text is in pt)
+    dodge_width   <- 0.3
+    fig_width_mm  <- 70
+    fig_height_mm <- 50
+    base_pt       <- 7
+    pt_mean_mm    <- 1.3   # mean dot
+    pt_jitter_mm  <- 1   # dot size
+    line_lw_mm    <- 0.3
+    eb_cap_mm     <- 0.5  # horizontal cap width; thickness set by linewidth below
+    
+    p <- ggplot(df, aes(x = .data[[time_col]], y = Value, color = .data[[arm_col]])) +
+      geom_jitter(position = position_dodge(width = dodge_width),
+                  alpha = 0.7, size = pt_jitter_mm) +
+      geom_point(
+        data = df_sum,
+        aes(x = .data[[time_col]], y = meanValue, color = .data[[arm_col]], group = .data[[arm_col]]),
+        size = pt_mean_mm, shape = 18,
+        position = position_dodge(width = dodge_width),
+        inherit.aes = FALSE
+      ) +
+      geom_errorbar(
+        data = df_sum,
+        aes(x = .data[[time_col]], ymin = meanValue - sdValue, ymax = meanValue + sdValue,
+            color = .data[[arm_col]], group = .data[[arm_col]]),
+        width = eb_cap_mm, linewidth = line_lw_mm,  # thickness explicit
+        position = position_dodge(width = dodge_width),
+        inherit.aes = FALSE
+      ) +
+      geom_line(
+        data = df_sum,
+        aes(x = .data[[time_col]], y = meanValue, color = .data[[arm_col]], group = .data[[arm_col]]),
+        linewidth = line_lw_mm,
+        position = position_dodge(width = dodge_width),
+        inherit.aes = FALSE
+      ) +
+      labs(title = pretty_title, subtitle = feat, x = "Time", y = ylab, color = arm_col) +
+      theme_bw(base_size = base_pt)
+    
+    
+    
+    p <- p +
+      theme(
+        plot.title = element_text(size = base_pt + 1, face = "bold"),
+        plot.subtitle = element_text(size = base_pt),
+        axis.title = element_text(size = base_pt),
+        axis.text  = element_text(size = base_pt - 1),
+        legend.title = element_text(size = base_pt),
+        legend.text  = element_text(size = base_pt - 1)
+      )
+    
+    # suffix for arms included in plot
+    arms_present <- unique(as.character(df[[arm_col]]))
+    file_suffix <- paste(sort(arms_present), collapse = "-")
+    
+    # Base filename without extension
+    file_base <- file.path(output_dir, paste0(feat, "_", "_by_", arm_col, "_", file_suffix))
+    
+    # save vector + raster at exact column width
+    ggsave(paste0(file_base, ".pdf"), plot = p, width = fig_width_mm, height = fig_height_mm, units = "mm")
+    ggsave(paste0(file_base, ".png"), plot = p, width = fig_width_mm, height = fig_height_mm, units = "mm", dpi = 300)
+    
+    message("Saved PNG and SVG: ", file_base)
   }
 }
+
+
+# =============================================================================
+# Figures
+
+out_figs_prot <- "~/1Work/Roselab/Metabolomics/results/acute_vs_chronic_RT/figs/prot"
+out_figs_metl <- "~/1Work/Roselab/Metabolomics/results/acute_vs_chronic_RT/figs/metl"
+
+# Glycerophospholipids
+plot_feature_trends(
+  feature_names = c("MW0055322"),
+  output_dir    = out_figs_metl,
+  expr_data     = metlData,
+  metaData      = metl_metaData,
+  # arm_include   = "IF",                 # <- filter to NIF
+  valid_times   = c("B0","D1","D5","F3", "F6"),
+  transform_y   = "log2p1",
+  molMetadata   = metabolite_mol_meta_data,
+  id_col        = "Index",
+  title_col     = "Compounds"
+)
+
+plot_feature_trends(
+  feature_names = c("MW0060249","MW0059344", "MEDN1278", "MEDP1322"),
+  output_dir    = out_figs_metl,
+  expr_data     = metlData,
+  metaData      = metl_metaData,
+  # arm_include   = "IF",              
+  valid_times   = c("B0","D1","D5", "F3", "F6"),
+  transform_y   = "log2p1",
+  molMetadata   = metabolite_mol_meta_data,
+  id_col        = "Index",
+  title_col     = "Compounds"
+)
+
+
+# Lysophosphatidylcholines
+plot_feature_trends(
+  feature_names = c("MEDN1278","MEDP1322"),
+  output_dir    = out_figs_metl,
+  expr_data     = metlData,
+  metaData      = metl_metaData,
+  # arm_include   = "NIF",    
+  valid_times   = c("B0","D1","D5", "F3", "F6"),
+  transform_y   = "log2p1",
+  molMetadata   = metabolite_mol_meta_data,
+  id_col        = "Index",
+  title_col     = "Compounds"
+)
+
+#Prostaglandin 
+
+plot_feature_trends(
+  feature_names = c("MEDN1430","MW0015050"),
+  output_dir    = out_figs_metl,
+  expr_data     = metlData,
+  metaData      = metl_metaData,
+  # arm_include   = "NIF",   
+  valid_times   = c("B0","D1","D5", "F3", "F6"),
+  transform_y   = "log2p1",
+  molMetadata   = metabolite_mol_meta_data,
+  id_col        = "Index",
+  title_col     = "Compounds"
+)
 
 # =============================================================================
 # Stats analysis
@@ -275,65 +382,7 @@ metl_results <- run_limma_timepoints(
 )
 
 
-# =============================================================================
-# Figures
 
-# Glycerophospholipids
-plot_feature_trends(
-  feature_names = c("MW0055322"),
-  output_dir    = out_figs_metl,
-  expr_data     = metlData,
-  metaData      = metl_metaData,
-  arm_include   = "IF",                 # <- filter to NIF
-  valid_times   = c("B0","D1","D5","F3", "F6"),
-  transform_y   = "log2p1",
-  molMetadata   = metabolite_mol_meta_data,
-  id_col        = "Index",
-  title_col     = "Compounds"
-)
-
-plot_feature_trends(
-  feature_names = c("MW0060249","MW0059344", "MEDN1278", "MEDP1322"),
-  output_dir    = out_figs_metl,
-  expr_data     = metlData,
-  metaData      = metl_metaData,
-  arm_include   = "IF",                 # <- filter to NIF
-  valid_times   = c("B0","D1","D5", "F3", "F6"),
-  transform_y   = "log2p1",
-  molMetadata   = metabolite_mol_meta_data,
-  id_col        = "Index",
-  title_col     = "Compounds"
-)
-
-
-# Lysophosphatidylcholines
-plot_feature_trends(
-  feature_names = c("MEDN1278","MEDP1322"),
-  output_dir    = out_figs_metl,
-  expr_data     = metlData,
-  metaData      = metl_metaData,
-  arm_include   = "NIF",                 # <- filter to NIF
-  valid_times   = c("B0","D1","F3"),
-  transform_y   = "log2p1",
-  molMetadata   = metabolite_mol_meta_data,
-  id_col        = "Index",
-  title_col     = "Compounds"
-)
-
-#Prostaglandin 
-
-plot_feature_trends(
-  feature_names = c("MEDN1430","MW0015050"),
-  output_dir    = out_figs_metl,
-  expr_data     = metlData,
-  metaData      = metl_metaData,
-  arm_include   = "NIF",                 # <- filter to NIF
-  valid_times   = c("B0","D1","D5", "F3", "F6"),
-  transform_y   = "log2p1",
-  molMetadata   = metabolite_mol_meta_data,
-  id_col        = "Index",
-  title_col     = "Compounds"
-)
 
 # =============================================================================
 # Legacy
@@ -400,8 +449,6 @@ metl_results <- run_limma_timepoints(
 
 #---------------------------- Ploting ---------------------------------------
 
-out_figs_prot <- "~/1Work/Roselab/Metabolomics/results/acute_vs_chronic_RT/figs/prot"
-out_figs_metl <- "~/1Work/Roselab/Metabolomics/results/acute_vs_chronic_RT/figs/metl"
 
 plot_feature_trends(
   feature_names = "MW0105369",
