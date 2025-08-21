@@ -140,15 +140,18 @@ plot_feature_trends <- function(
     metaData,
     sample_col  = "Sample_ID",
     time_col    = "Time",
-    arm_col     = "Arm",              # group shown in color
-    arm_include = NULL,               # set to c("NIF","IF") to force only those; NULL = all arms present
+    arm_col     = "Arm",
+    arm_include = NULL,                # c("NIF","IF") or "NIF" or NULL for all
     valid_times = c("B0","D5","F3"),
     transform_y = c("none","log2p1"),
     molMetadata = NULL,
-    id_col      = NULL,               # e.g., "SeqID" (protein) or "Index" (metabolite)
-    title_col   = NULL                # e.g., "Description" (protein) or "Compounds" (metabolite)
+    id_col      = NULL,                # "SeqID" (protein) or "Index" (metabolite)
+    title_col   = NULL,                # "Description" or "Compounds"
+    error_bar   = c("sem","sd","ci95") # NEW: default SEM
 ){
   transform_y <- match.arg(transform_y)
+  error_bar   <- match.arg(error_bar)
+  
   if (!dir.exists(output_dir)) {
     dir.create(output_dir, recursive = TRUE)
     message("Folder created: ", output_dir)
@@ -215,26 +218,45 @@ plot_feature_trends <- function(
     if (nrow(df) == 0) { warning("No data for feature ", feat, " at requested timepoints."); next }
     df[[time_col]] <- factor(df[[time_col]], levels = valid_times)
     
-    # summary by Time and Arm
+    # ----- summary by Time and Arm (includes SEM and CI) -----
     df_sum <- df %>%
       dplyr::group_by(.data[[time_col]], .data[[arm_col]]) %>%
       dplyr::summarise(
         meanValue = mean(Value, na.rm = TRUE),
         sdValue   = sd(Value,   na.rm = TRUE),
         n         = dplyr::n(),
+        semValue  = sdValue / sqrt(pmax(n, 1)),
+        tcrit     = qt(0.975, df = pmax(n - 1, 1)),
+        ciLower   = meanValue - tcrit * (sdValue / sqrt(pmax(n, 1))),
+        ciUpper   = meanValue + tcrit * (sdValue / sqrt(pmax(n, 1))),
         .groups   = "drop"
+      ) %>%
+      dplyr::mutate(
+        err_low  = dplyr::case_when(
+          error_bar == "sem"  ~ meanValue - semValue,
+          error_bar == "sd"   ~ meanValue - sdValue,
+          TRUE                ~ ciLower
+        ),
+        err_high = dplyr::case_when(
+          error_bar == "sem"  ~ meanValue + semValue,
+          error_bar == "sd"   ~ meanValue + sdValue,
+          TRUE                ~ ciUpper
+        )
       )
     
-    
-    # sizing knobs (mm; text is in pt)
+    # ---- sizing knobs (unchanged) ----
     dodge_width   <- 0.3
-    fig_width_mm  <- 70
+    fig_width_mm  <- 35# 70
     fig_height_mm <- 50
     base_pt       <- 7
     pt_mean_mm    <- 1.3   # mean dot
-    pt_jitter_mm  <- 1   # dot size
+    pt_jitter_mm  <- 1     # dot size
     line_lw_mm    <- 0.3
-    eb_cap_mm     <- 0.5  # horizontal cap width; thickness set by linewidth below
+    eb_cap_mm     <- 0.5
+    
+    # fixed palette so NIF is blue even when plotted alone
+    pal <- c(IF = "#F8766D", NIF = "#00BFC4")
+    arms_present <- sort(unique(as.character(df[[arm_col]])))
     
     p <- ggplot(df, aes(x = .data[[time_col]], y = Value, color = .data[[arm_col]])) +
       geom_jitter(position = position_dodge(width = dodge_width),
@@ -248,9 +270,9 @@ plot_feature_trends <- function(
       ) +
       geom_errorbar(
         data = df_sum,
-        aes(x = .data[[time_col]], ymin = meanValue - sdValue, ymax = meanValue + sdValue,
+        aes(x = .data[[time_col]], ymin = err_low, ymax = err_high,
             color = .data[[arm_col]], group = .data[[arm_col]]),
-        width = eb_cap_mm, linewidth = line_lw_mm,  # thickness explicit
+        width = eb_cap_mm, linewidth = line_lw_mm,
         position = position_dodge(width = dodge_width),
         inherit.aes = FALSE
       ) +
@@ -261,42 +283,52 @@ plot_feature_trends <- function(
         position = position_dodge(width = dodge_width),
         inherit.aes = FALSE
       ) +
+      scale_color_manual(values = pal[intersect(names(pal), arms_present)],
+                         limits = arms_present, drop = FALSE) +
       labs(title = pretty_title, subtitle = feat, x = "Time", y = ylab, color = arm_col) +
-      theme_bw(base_size = base_pt)
-    
-    
-    
-    p <- p +
+      theme_bw(base_size = base_pt) +
       theme(
-        plot.title = element_text(size = base_pt + 1, face = "bold"),
-        plot.subtitle = element_text(size = base_pt),
-        axis.title = element_text(size = base_pt),
-        axis.text  = element_text(size = base_pt - 1),
+        plot.title   = element_text(size = base_pt + 1, face = "bold"),
+        plot.subtitle= element_text(size = base_pt),
+        axis.title   = element_text(size = base_pt),
+        axis.text    = element_text(size = base_pt - 1),
         legend.title = element_text(size = base_pt),
         legend.text  = element_text(size = base_pt - 1)
-      )
+      ) +
+      theme(legend.position = "none")
     
-    # suffix for arms included in plot
-    arms_present <- unique(as.character(df[[arm_col]]))
-    file_suffix <- paste(sort(arms_present), collapse = "-")
+    file_suffix <- paste(arms_present, collapse = "-")
+    file_base <- file.path(output_dir, paste0(feat, "_by_", arm_col, "_", file_suffix))
     
-    # Base filename without extension
-    file_base <- file.path(output_dir, paste0(feat, "_", "_by_", arm_col, "_", file_suffix))
-    
-    # save vector + raster at exact column width
     ggsave(paste0(file_base, ".pdf"), plot = p, width = fig_width_mm, height = fig_height_mm, units = "mm")
     ggsave(paste0(file_base, ".png"), plot = p, width = fig_width_mm, height = fig_height_mm, units = "mm", dpi = 300)
     
-    message("Saved PNG and SVG: ", file_base)
+    message("Saved PDF and PNG: ", file_base)
   }
 }
-
 
 # =============================================================================
 # Figures
 
 out_figs_prot <- "~/1Work/Roselab/Metabolomics/results/acute_vs_chronic_RT/figs/prot"
 out_figs_metl <- "~/1Work/Roselab/Metabolomics/results/acute_vs_chronic_RT/figs/metl"
+
+
+# FINAL
+plot_feature_trends(
+  feature_names = c("MEDN1278","MEDN1430", "MW0015050"),
+  output_dir    = out_figs_metl,
+  expr_data     = metlData,
+  metaData      = metl_metaData,
+  arm_include   = "NIF",
+  valid_times   = c("B0","D1"),
+  transform_y   = "log2p1",
+  molMetadata   = metabolite_mol_meta_data,
+  id_col        = "Index",
+  title_col     = "Compounds"
+)
+
+
 
 # Glycerophospholipids
 plot_feature_trends(
@@ -324,6 +356,8 @@ plot_feature_trends(
   id_col        = "Index",
   title_col     = "Compounds"
 )
+
+
 
 
 # Lysophosphatidylcholines
