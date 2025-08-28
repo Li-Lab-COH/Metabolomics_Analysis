@@ -334,7 +334,7 @@ plot_ratio_columns <- function(df_ratio,
                                subtitle = "",
                                index_id,
                                output_dir = "ratio_plots",
-                               fig_width_mm = 70,
+                               fig_width_mm = 35,
                                fig_height_mm = 50,
                                base_pt = 7,
                                jitter_width = 0.12,   # horizontal jitter
@@ -387,8 +387,9 @@ plot_ratio_columns <- function(df_ratio,
     ) +
     # (mean connecting line REMOVED)
     ggplot2::labs(title = title_main, subtitle = subtitle,
-                  x = "Ratio", y = "Fold-change (unitless)", color = arm_col) +
-    ggplot2::theme_bw(base_size = base_pt)
+                  x = "Ratio", y = "Fold-change", color = arm_col) +
+    ggplot2::theme_bw(base_size = base_pt)+
+    theme(legend.position = "none")
   
   file_base <- file.path(output_dir, paste0(index_id, "_", paste(ratio_cols, collapse = "_")))
   ggplot2::ggsave(paste0(file_base, ".pdf"), plot = p, width = fig_width_mm, height = fig_height_mm, units = "mm")
