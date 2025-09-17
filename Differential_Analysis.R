@@ -1,7 +1,7 @@
 # Load required libraries
 library(limma)
 library(dplyr)
-BiocManager::install("limma")
+# BiocManager::install("limma")
 # B0 - baseline
 # D1 - new start
 # D5 - week 5
@@ -61,7 +61,7 @@ metaData
 design <- model.matrix(~ 0 + time_group)
 colnames(design) <- levels(time_group)
 
-design
+# design
 # 
 #   for (tp in setdiff(timepoints, "B0")) {
 #     # Identify samples for this timepoint and baseline
@@ -76,29 +76,29 @@ design
 #     time_group <- factor(md_arm$Time[match(comparison_samples, md_arm$Sample_ID)],
 #                          levels = timepoints)
     
-    # Build design matrix
-    design <- model.matrix(~ 0 + time_group)
-    colnames(design) <- levels(time_group)
-    
-    # Contrast: current timepoint vs B0
-    contrast.matrix <- makeContrasts(contrasts = paste(tp, "- B0"), levels = design)
-    
-    # Fit model and compute statistics
-    fit <- lmFit(data_subset, design)
-    fit2 <- contrasts.fit(fit, contrast.matrix)
-    fit2 <- eBayes(fit2)
-    
-    # Get topTable with all metabolites
-    result <- topTable(fit2, number = Inf, adjust.method = "fdr", sort.by = "none")
-    
-    # Save result to CSV
-    file_name <- paste0("Differential_", a, "_", tp, "_vs_B0.csv")
-    write.csv(result, file = file_name, row.names = TRUE)
-    
-    # Progress message
-    cat("Saved differential analysis for arm", a, "timepoint", tp, "vs B0 to", file_name, "\n")
-  }
-}
+  #   # Build design matrix
+  #   design <- model.matrix(~ 0 + time_group)
+  #   colnames(design) <- levels(time_group)
+  #   
+  #   # Contrast: current timepoint vs B0
+  #   contrast.matrix <- makeContrasts(contrasts = paste(tp, "- B0"), levels = design)
+  #   
+  #   # Fit model and compute statistics
+  #   fit <- lmFit(data_subset, design)
+  #   fit2 <- contrasts.fit(fit, contrast.matrix)
+  #   fit2 <- eBayes(fit2)
+  #   
+  #   # Get topTable with all metabolites
+  #   result <- topTable(fit2, number = Inf, adjust.method = "fdr", sort.by = "none")
+  #   
+  #   # Save result to CSV
+  #   file_name <- paste0("Differential_", a, "_", tp, "_vs_B0.csv")
+  #   write.csv(result, file = file_name, row.names = TRUE)
+  #   
+  #   # Progress message
+  #   cat("Saved differential analysis for arm", a, "timepoint", tp, "vs B0 to", file_name, "\n")
+  # # }
+# }
 
 
 #------------------------- suggested loop ----------------------------------
@@ -162,7 +162,8 @@ for (a in arms) {
     result <- topTable(fit2, number = Inf, adjust.method = "fdr", sort.by = "none")
     
     # Save result to CSV
-    file_name <- paste0("Differential_", a, "_", tp, "_vs_B0.csv")
+    file_name <- file.path("~/Roselab/Metabolite/results/Differential_Analysis/",
+                           paste0("Differential_", a, "_", tp, "_vs_B0.csv"))
     write.csv(result, file = file_name, row.names = TRUE)
     
     # Progress message

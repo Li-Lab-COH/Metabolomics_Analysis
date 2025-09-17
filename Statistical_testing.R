@@ -49,7 +49,8 @@ cat("Before filtering:", nrow(metlData_log2), "metabolites\n")
 cat("After filtering:", nrow(metlData_log2_filtered), "metabolites\n")
 
 # Define time points and subset metadata
-timepoints_of_interest <- c("B0", "D5", "F3", "F6")
+timepoints_of_interest <- c("D1")
+# timepoints_of_interest <- c("B0", "D1", "D5", "F3", "F6")
 metaSubset <- metaData %>%
   filter(Time %in% timepoints_of_interest, Arm %in% c("IF", "NIF")) %>% 
   mutate(Patient_ID = gsub("_.*", "", Sample_ID))
